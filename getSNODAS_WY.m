@@ -38,7 +38,8 @@ if nargin < 2 || isempty(BB)
     BB = [-116.2 -114.6 43.2 44.4]; % Boise River Basin
 end
 if nargin < 3 || isempty(outDir)
-    outDir = pwd;
+    outDir = '/Users/hpmarshall/DATA_DRIVE/SnowFusion/SNODAS';
+    if ~exist(outDir, 'dir'); mkdir(outDir); end
 end
 
 %% Set up SNODAS grid

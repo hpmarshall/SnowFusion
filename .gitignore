@@ -1,0 +1,19 @@
+# Data files (stored on DATA_DRIVE, not in git repo)
+*.mat
+*.nc
+*.mp4
+*.avi
+*.png
+*.jpg
+*.tif
+*.tiff
+
+# MATLAB temporary files
+*.asv
+*.m~
+*.autosave
+
+# Directories that may contain downloaded data
+data_BRB/
+data/
+temp_download/

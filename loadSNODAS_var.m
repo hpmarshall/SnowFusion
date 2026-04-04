@@ -2,7 +2,8 @@ function [data, lat, lon] = loadSNODAS_var(matFile, varName)
 % loadSNODAS_var - Load a single variable from a SNODAS water year .mat file
 %
 % USAGE:
-%   [data, lat, lon] = loadSNODAS_var('data_BRB/SNODAS_BRB_WY2024.mat', 'SWE')
+%   dataRoot = '/Users/hpmarshall/DATA_DRIVE/SnowFusion';
+%   [data, lat, lon] = loadSNODAS_var(fullfile(dataRoot, 'SNODAS/SNODAS_BRB_WY2024.mat'), 'SWE')
 %
 % INPUTS:
 %   matFile - path to .mat file created by getSNODAS_BRB.m

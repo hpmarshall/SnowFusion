@@ -25,6 +25,7 @@ clear; clc;
 % Default region: Boise River Basin
 defaultBB = [-116.2 -114.6 43.2 44.4];
 defaultShapefile = 'BRB_outline.shp'; % set to '' if not available
+dataRoot = '/Users/hpmarshall/DATA_DRIVE/SnowFusion'; % external data drive
 
 %% ========== STEP 1: Select Data Source ==========
 fprintf('\n========================================\n');
@@ -45,8 +46,9 @@ if source == 1
     srcName = 'SNODAS';
     varList = {'SWE','Depth','Precip','SnowPrecip','Tsnow','Melt','Sublimation','SublimationBS'};
 
-    % Check for existing .mat files (both naming conventions)
-    matFiles = [dir('SNODAS_WY*.mat'); dir('data_BRB/SNODAS_BRB_WY*.mat')];
+    % Check for existing .mat files on data drive
+    snodasDir = fullfile(dataRoot, 'SNODAS');
+    matFiles = [dir(fullfile(snodasDir, 'SNODAS_WY*.mat')); dir(fullfile(snodasDir, 'SNODAS_BRB_WY*.mat'))];
     if ~isempty(matFiles)
         fprintf('\nFound existing SNODAS files:\n');
         for f = 1:length(matFiles)
@@ -63,14 +65,14 @@ if source == 1
             WY = input('Enter water year to download (e.g. 2020): ');
             BB = input(sprintf('Bounding box [lonmin lonmax latmin latmax]\n  (Enter for BRB default [%g %g %g %g]): ', defaultBB));
             if isempty(BB), BB = defaultBB; end
-            data = getSNODAS_WY(WY, BB);
+            data = getSNODAS_WY(WY, BB, snodasDir);
         end
     else
-        fprintf('\nNo existing SNODAS .mat files found.\n');
+        fprintf('\nNo existing SNODAS .mat files found on data drive.\n');
         WY = input('Enter water year to download (e.g. 2020): ');
         BB = input(sprintf('Bounding box [lonmin lonmax latmin latmax]\n  (Enter for BRB default): '));
         if isempty(BB), BB = defaultBB; end
-        data = getSNODAS_WY(WY, BB);
+        data = getSNODAS_WY(WY, BB, fullfile(dataRoot, 'SNODAS'));
     end
 
 elseif source == 2
@@ -79,7 +81,8 @@ elseif source == 2
     varList = {'SWE_mean','SWE_median','SWE_std','SWE_p25','SWE_p75', ...
                'fSCA_mean','SD_mean','SD_median','SD_std'};
 
-    matFiles = dir('UCLA_SWE_WY*.mat');
+    uclaDir = fullfile(dataRoot, 'UCLA_SR');
+    matFiles = dir(fullfile(uclaDir, 'UCLA_SWE_WY*.mat'));
     if ~isempty(matFiles)
         fprintf('\nFound existing UCLA SWE files:\n');
         for f = 1:length(matFiles)
@@ -88,23 +91,22 @@ elseif source == 2
         fprintf('  [0] Load new water year from NetCDF tiles\n');
         choice = input('Select file to load [number]: ');
         if choice > 0
-            fprintf('Loading %s...\n', matFiles(choice).name);
-            tmp = load(matFiles(choice).name);
+            loadPath = fullfile(matFiles(choice).folder, matFiles(choice).name);
+            fprintf('Loading %s...\n', loadPath);
+            tmp = load(loadPath);
             data = tmp.UCLA;
         else
             WY = input('Enter water year (1985-2021): ');
             BB = input(sprintf('Bounding box [lonmin lonmax latmin latmax]\n  (Enter for BRB default): '));
             if isempty(BB), BB = defaultBB; end
-            dataDir = input('Path to UCLA NetCDF files: ', 's');
-            data = getUCLA_SWE(WY, BB, dataDir);
+            data = getUCLA_SWE(WY, BB, uclaDir);
         end
     else
-        fprintf('\nNo existing UCLA SWE .mat files found.\n');
+        fprintf('\nNo existing UCLA SWE .mat files found on data drive.\n');
         WY = input('Enter water year (1985-2021): ');
         BB = input(sprintf('Bounding box [lonmin lonmax latmin latmax]\n  (Enter for BRB default): '));
         if isempty(BB), BB = defaultBB; end
-        dataDir = input('Path to UCLA NetCDF files: ', 's');
-        data = getUCLA_SWE(WY, BB, dataDir);
+        data = getUCLA_SWE(WY, BB, uclaDir);
     end
 else
     error('Invalid source selection. Choose 1 or 2.');

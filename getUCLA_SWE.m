@@ -46,7 +46,8 @@ if nargin < 2 || isempty(BB)
     BB = [-116.2 -114.6 43.2 44.4]; % Boise River Basin
 end
 if nargin < 3 || isempty(dataDir)
-    dataDir = pwd;
+    dataDir = '/Users/hpmarshall/DATA_DRIVE/SnowFusion/UCLA_SR';
+    if ~exist(dataDir, 'dir'); mkdir(dataDir); end
 end
 
 %% Determine which tiles are needed

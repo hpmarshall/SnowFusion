@@ -53,6 +53,13 @@ SnowFusion/
   -- Subdirectories (legacy/original code) --
   SNODAS/               Original SNODAS scripts and earlier versions
   UCLA_SR/              Original UCLA SR scripts
+  .gitignore            Excludes data files from git
+
+External data directory (not in git repo):
+  /Users/hpmarshall/DATA_DRIVE/SnowFusion/
+    SNODAS/             Downloaded SNODAS .mat files and figures
+    UCLA_SR/            Downloaded UCLA .nc files and figures
+    temp_download/      Temporary extraction directory (auto-cleaned)
 ```
 
 ---
@@ -67,7 +74,7 @@ Edit `getSNODAS_BRB.m` to set the water year, then run:
 >> getSNODAS_BRB
 ```
 
-This downloads all 8 SNODAS variables for the full water year, converts units, and saves to `data_BRB/SNODAS_BRB_WY2021.mat`. Individual daily .mat files are cached so interrupted downloads can resume.
+This downloads all 8 SNODAS variables for the full water year, converts units, and saves to `/Users/hpmarshall/DATA_DRIVE/SnowFusion/SNODAS/SNODAS_BRB_WY2021.mat`. Individual daily .mat files are cached so interrupted downloads can resume. All data files are stored on the external data drive to keep the git repo lightweight.
 
 **Alternative (function form):**
 
@@ -186,8 +193,8 @@ swe_map = UCLA.SWE_mean(:,:,apr1_idx);
 Load a single variable from a cached SNODAS .mat file.
 
 ```matlab
-[swe, lat, lon] = loadSNODAS_var('data_BRB/SNODAS_BRB_WY2021.mat', 'SWE');
-[depth, lat, lon] = loadSNODAS_var('data_BRB/SNODAS_BRB_WY2021.mat', 'Depth');
+[swe, lat, lon] = loadSNODAS_var('/Users/hpmarshall/DATA_DRIVE/SnowFusion/SNODAS/SNODAS_BRB_WY2021.mat', 'SWE');
+[depth, lat, lon] = loadSNODAS_var('/Users/hpmarshall/DATA_DRIVE/SnowFusion/SNODAS/SNODAS_BRB_WY2021.mat', 'Depth');
 ```
 
 **Inputs:**
@@ -228,7 +235,7 @@ Generic single-date map for any snow variable from either SNODAS or UCLA data.
 
 ```matlab
 % Plot SNODAS SWE on April 1
-load('data_BRB/SNODAS_BRB_WY2021.mat');
+load('/Users/hpmarshall/DATA_DRIVE/SnowFusion/SNODAS/SNODAS_BRB_WY2021.mat');
 plotSnowVar(Snodas, 'SWE', '2021-04-01');
 
 % Plot with shapefile overlay and custom color limits
@@ -238,7 +245,7 @@ plotSnowVar(Snodas, 'Depth', '2021-04-01', ...
     'saveFig', 'depth_apr1.png');
 
 % Plot UCLA SWE mean
-load('UCLA_SWE_WY2020.mat');
+load('/Users/hpmarshall/DATA_DRIVE/SnowFusion/UCLA_SR/UCLA_SWE_WY2020.mat');
 plotSnowVar(UCLA, 'SWE_mean', '2020-04-01', ...
     'shapefile', 'BRB_outline.shp', ...
     'cmap', 'parula');
@@ -261,13 +268,13 @@ Create an MP4 animation of any snow variable over the water year.
 
 ```matlab
 % SNODAS SWE movie
-load('data_BRB/SNODAS_BRB_WY2021.mat');
+load('/Users/hpmarshall/DATA_DRIVE/SnowFusion/SNODAS/SNODAS_BRB_WY2021.mat');
 makeSnowMovie(Snodas, 'SWE', 'SNODAS_SWE_WY2021.mp4', ...
     'shapefile', 'BRB_outline.shp', ...
     'fps', 12);
 
 % UCLA SWE movie, every other day, custom color range
-load('UCLA_SWE_WY2020.mat');
+load('/Users/hpmarshall/DATA_DRIVE/SnowFusion/UCLA_SR/UCLA_SWE_WY2020.mat');
 makeSnowMovie(UCLA, 'SWE_mean', 'UCLA_SWE_WY2020.mp4', ...
     'fps', 15, ...
     'skipDays', 2, ...

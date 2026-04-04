@@ -34,12 +34,13 @@ clear; clc;
 % SNODAS archive begins Oct 2003 (WY2004)
 WY = 2021;  % Water year to download (e.g. 2021 = Oct 2020 - Sep 2021)
 
-% Output directory
-outDir = fullfile(pwd, 'data_BRB');
+% Output directory (external data drive - keeps large files out of git repo)
+dataRoot = '/Users/hpmarshall/DATA_DRIVE/SnowFusion';
+outDir = fullfile(dataRoot, 'SNODAS');
 if ~exist(outDir, 'dir'); mkdir(outDir); end
 
 % Temporary directory for extracting tar/gz files
-tempDir = fullfile(pwd, 'temp_download');
+tempDir = fullfile(dataRoot, 'temp_download');
 if ~exist(tempDir, 'dir'); mkdir(tempDir); end
 
 %% ====== SNODAS GRID DEFINITION ======

@@ -22,7 +22,8 @@ fps     = 10;             % Frames per second for video
 %          'SublimationBS','Melt','Sublimation'
 
 %% ====== LOAD DATA ======
-dataDir = fullfile(pwd, 'data_BRB');
+dataRoot = '/Users/hpmarshall/DATA_DRIVE/SnowFusion';
+dataDir = fullfile(dataRoot, 'SNODAS');
 matFile = fullfile(dataDir, sprintf('SNODAS_BRB_WY%d.mat', WY));
 
 if ~exist(matFile, 'file')

@@ -26,8 +26,9 @@ earthdata_pass = 'YOUR_PASSWORD';   % <-- Replace with your Earthdata password
 water_year_start = 2020;  % WY2021 = Oct 2020 - Sep 2021
 water_year_end   = 21;    % 2-digit end year
 
-% Output directory for downloaded files
-outDir = fullfile(pwd, 'data');
+% Output directory (external data drive - keeps large files out of git repo)
+dataRoot = '/Users/hpmarshall/DATA_DRIVE/SnowFusion';
+outDir = fullfile(dataRoot, 'UCLA_SR');
 if ~exist(outDir, 'dir'); mkdir(outDir); end
 
 %% ====== DETERMINE TILES COVERING BOISE RIVER BASIN ======
