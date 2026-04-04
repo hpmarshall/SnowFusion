@@ -9,10 +9,10 @@ function [lat, lon, SWE, fSCA, SD] = mosaicUCLA_SR(dataDir, wyStr, latTiles, lon
 %   *_SD_POST.nc      -> contains SD_Post
 %
 % NetCDF dimension ordering (from ncread):
-%   [225 x 225 x 5 x 365] = [dim1 x dim2 x ensemble x day]
-%   - dim1 corresponds to Longitude (ascending, west to east)
-%   - dim2 corresponds to Latitude (descending, north to south)
-%   So ncread returns [lon x lat x ens x day].
+%   [225 x 225 x 5 x 366] = [Latitude x Longitude x ensemble x day]
+%   - dim1 corresponds to Latitude
+%   - dim2 corresponds to Longitude
+%   So ncread returns [lat x lon x ens x day] — NO permute needed.
 %
 % This function uses coordinate-based placement: each tile's lat/lon
 % arrays are read and matched to the mosaic grid, avoiding any
@@ -94,7 +94,7 @@ if hasSWE
 else
     testData = ncread(testFile, sdVarName);
 end
-% ncread returns [lon(225) x lat(225) x ensemble(5) x day(365)]
+% ncread returns [lat(225) x lon(225) x ensemble(5) x day(365/366)]
 nEns  = size(testData, 3);
 nDays = size(testData, 4);
 
@@ -166,10 +166,9 @@ for iLat = 1:nLat
                 tileLat = ncread(fname, latVarName);
                 tileLon = ncread(fname, lonVarName);
 
-                % ncread returns [lon x lat x ens x day]
-                % Permute to [lat x lon x ens x day]
-                tileSWE  = permute(ncread(fname, sweVarName),  [2 1 3 4]);
-                tilefSCA = permute(ncread(fname, fscaVarName), [2 1 3 4]);
+                % ncread returns [lat x lon x ens x day] — no permute needed
+                tileSWE  = ncread(fname, sweVarName);
+                tilefSCA = ncread(fname, fscaVarName);
 
                 % Map tile coordinates to mosaic indices
                 latIdx = findCoordIdx(tileLat, latVec, tol);
@@ -194,7 +193,7 @@ for iLat = 1:nLat
 
                 tileLat = ncread(fname, sdLatVarName);
                 tileLon = ncread(fname, sdLonVarName);
-                tileSD  = permute(ncread(fname, sdVarName), [2 1 3 4]);
+                tileSD  = ncread(fname, sdVarName);
 
                 latIdx = findCoordIdx(tileLat, latVec, tol);
                 lonIdx = findCoordIdx(tileLon, lonVec, tol);
