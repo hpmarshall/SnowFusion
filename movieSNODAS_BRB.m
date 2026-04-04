@@ -86,10 +86,8 @@ switch plotVar
 end
 
 %% ====== LOAD SHAPEFILE ======
-shpFile = fullfile(fileparts(mfilename('fullpath')), 'BRB_outline.shp');
-if ~exist(shpFile, 'file')
-    shpFile = 'BRB_outline.shp';
-end
+scriptDir = fileparts(mfilename('fullpath'));
+shpFile = fullfile(scriptDir, 'BRB_outline.shp');
 hasShp = exist(shpFile, 'file');
 
 latlim = [min(lat) max(lat)];

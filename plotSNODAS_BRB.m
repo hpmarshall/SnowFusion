@@ -26,7 +26,8 @@ clear; clc; close all;
 %% ====== CONFIGURATION ======
 dataRoot = '/Users/hpmarshall/DATA_DRIVE/SnowFusion';
 dataDir = fullfile(dataRoot, 'SNODAS');      % directory with .mat files
-shpFile = 'BRB_outline.shp';                % BRB shapefile (UTM Zone 11N)
+scriptDir = fileparts(mfilename('fullpath'));
+shpFile = fullfile(scriptDir, 'BRB_outline.shp');  % BRB shapefile (UTM Zone 11N)
 WY      = 2021;                              % Water year
 
 % Date of interest (standard: April 1 for peak SWE assessment)
@@ -47,11 +48,6 @@ fprintf('Grid size: %d lat x %d lon\n', length(lat), length(lon));
 
 %% ====== LOAD AND CONVERT BRB SHAPEFILE ======
 fprintf('Loading BRB shapefile...\n');
-if ~exist(shpFile, 'file')
-    % Try looking relative to this script's location
-    shpFile = fullfile(fileparts(mfilename('fullpath')), 'BRB_outline.shp');
-end
-
 if exist(shpFile, 'file')
     [S, A] = shaperead(shpFile);
 

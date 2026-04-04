@@ -24,7 +24,8 @@ clear; clc;
 %% ========== CONFIGURATION ==========
 % Default region: Boise River Basin
 defaultBB = [-116.2 -114.6 43.2 44.4];
-defaultShapefile = 'BRB_outline.shp'; % set to '' if not available
+scriptDir = fileparts(mfilename('fullpath'));
+defaultShapefile = fullfile(scriptDir, 'BRB_outline.shp'); % resolve relative to script location
 dataRoot = '/Users/hpmarshall/DATA_DRIVE/SnowFusion'; % external data drive
 
 %% ========== STEP 1: Select Data Source ==========

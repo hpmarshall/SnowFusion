@@ -17,7 +17,8 @@ clear; clc; close all;
 %% ====== CONFIGURATION ======
 dataRoot = '/Users/hpmarshall/DATA_DRIVE/SnowFusion';
 dataDir = fullfile(dataRoot, 'UCLA_SR');  % directory with .nc files
-shpFile = 'BRB_outline.shp';             % BRB shapefile (UTM Zone 11N)
+scriptDir = fileparts(mfilename('fullpath'));
+shpFile = fullfile(scriptDir, 'BRB_outline.shp');  % BRB shapefile (UTM Zone 11N)
 wyStr   = 'WY2020_21';                    % water year string
 
 % Tiles covering BRB
