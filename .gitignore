@@ -8,6 +8,9 @@
 *.tif
 *.tiff
 
+# Credentials (never commit these)
+earthdata_credentials.m
+
 # MATLAB temporary files
 *.asv
 *.m~
