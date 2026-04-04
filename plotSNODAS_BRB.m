@@ -140,7 +140,7 @@ xlabel('Longitude [deg]');
 ylabel('Latitude [deg]');
 title(sprintf('SNODAS - SWE [cm] - %s\nBoise River Basin, WY%d', dateStr, WY), ...
     'FontSize', 16);
-axis tight;
+daspect([1 1 1]); axis tight;
 print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SNODAS_SWE_WY%d_day%03d.png', WY, dayIdx)));
 
 %% ====== FIGURE 2: SNOW DEPTH MAP ======
@@ -164,7 +164,7 @@ xlabel('Longitude [deg]');
 ylabel('Latitude [deg]');
 title(sprintf('SNODAS - Snow Depth [cm] - %s\nBoise River Basin, WY%d', dateStr, WY), ...
     'FontSize', 16);
-axis tight;
+daspect([1 1 1]); axis tight;
 print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SNODAS_Depth_WY%d_day%03d.png', WY, dayIdx)));
 
 %% ====== FIGURE 3: DAILY MELT MAP ======
@@ -189,7 +189,7 @@ xlabel('Longitude [deg]');
 ylabel('Latitude [deg]');
 title(sprintf('SNODAS - Daily Melt [mm] - %s\nBoise River Basin, WY%d', dateStr, WY), ...
     'FontSize', 16);
-axis tight;
+daspect([1 1 1]); axis tight;
 print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SNODAS_Melt_WY%d_day%03d.png', WY, dayIdx)));
 
 %% ====== FIGURE 4: 3-PANEL SUMMARY ======
@@ -205,7 +205,7 @@ plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
 hold off;
 colorbar; colormap(gca, parula);
 title(sprintf('SWE [cm]\n%s', dateStr));
-xlabel('Lon'); ylabel('Lat'); axis tight;
+xlabel('Lon'); ylabel('Lat'); daspect([1 1 1]); axis tight;
 
 subplot(1, 3, 2);
 imagesc(lon, lat, Depth_map * 100);
@@ -216,7 +216,7 @@ plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
 hold off;
 colorbar; colormap(gca, parula);
 title(sprintf('Snow Depth [cm]\n%s', dateStr));
-xlabel('Lon'); ylabel('Lat'); axis tight;
+xlabel('Lon'); ylabel('Lat'); daspect([1 1 1]); axis tight;
 
 subplot(1, 3, 3);
 imagesc(lon, lat, Melt_map * 1000);
@@ -229,7 +229,7 @@ colorbar;
 cmap_melt3 = [1 1 1; flipud(autumn(255))];
 colormap(gca, cmap_melt3);
 title(sprintf('Daily Melt [mm]\n%s', dateStr));
-xlabel('Lon'); ylabel('Lat'); axis tight;
+xlabel('Lon'); ylabel('Lat'); daspect([1 1 1]); axis tight;
 
 sgtitle(sprintf('SNODAS - Boise River Basin - WY%d', WY), ...
     'FontSize', 16, 'FontWeight', 'bold');
@@ -350,7 +350,7 @@ xlabel('Longitude [deg]');
 ylabel('Latitude [deg]');
 title(sprintf('SNODAS - Bulk Snow Density [SWE/Depth] - %s\nBoise River Basin, WY%d', ...
     dateStr, WY), 'FontSize', 14);
-axis tight;
+daspect([1 1 1]); axis tight;
 
 print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SNODAS_density_WY%d_day%03d.png', WY, dayIdx)));
 

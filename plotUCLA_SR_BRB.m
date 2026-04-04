@@ -57,6 +57,10 @@ inBRB = inpolygon(LON, LAT, S_lon, S_lat);
 fprintf('Pixels inside BRB: %d of %d (%.1f%%)\n', ...
     sum(inBRB(:)), numel(inBRB), 100*sum(inBRB(:))/numel(inBRB));
 
+%% ====== LOAD SNOTEL SITES ======
+snotel = getSNOTEL_BRB();
+fprintf('Loaded %d SNOTEL stations\n', snotel.nStations);
+
 %% ====== EXTRACT DATA FOR TARGET DATE ======
 % Get ensemble mean for target date
 SWE_map  = SWE(:, :, ensIdx, targetDate);   % [m]
@@ -82,6 +86,7 @@ imagesc(lon, lat, SWE_map * 100); % convert m to cm
 set(gca, 'YDir', 'normal');
 hold on;
 plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 hold off;
 
 colorbar;
@@ -92,7 +97,7 @@ xlabel('Longitude [deg]');
 ylabel('Latitude [deg]');
 title(sprintf('UCLA SR - SWE [cm] - %s\nBoise River Basin, %s', dateStr, wyStrTitle), ...
     'FontSize', 16);
-axis tight;
+daspect([1 1 1]); axis tight;
 print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SWE_%s_day%03d.png', wyStr, targetDate)));
 
 %% ====== FIGURE 2: FRACTIONAL SNOW COVER ======
@@ -103,6 +108,7 @@ imagesc(lon, lat, fSCA_map * 100); % convert to percent
 set(gca, 'YDir', 'normal');
 hold on;
 plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 hold off;
 
 colorbar;
@@ -114,7 +120,7 @@ xlabel('Longitude [deg]');
 ylabel('Latitude [deg]');
 title(sprintf('UCLA SR - fSCA [%%] - %s\nBoise River Basin, %s', dateStr, wyStrTitle), ...
     'FontSize', 16);
-axis tight;
+daspect([1 1 1]); axis tight;
 print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_fSCA_%s_day%03d.png', wyStr, targetDate)));
 
 %% ====== FIGURE 3: SNOW DEPTH ======
@@ -127,6 +133,7 @@ if hasSD
     set(gca, 'YDir', 'normal');
     hold on;
     plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+    plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
     hold off;
 
     colorbar;
@@ -137,7 +144,7 @@ if hasSD
     ylabel('Latitude [deg]');
     title(sprintf('UCLA SR - Snow Depth [cm] - %s\nBoise River Basin, %s', dateStr, wyStrTitle), ...
         'FontSize', 16);
-    axis tight;
+    daspect([1 1 1]); axis tight;
     print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SD_%s_day%03d.png', wyStr, targetDate)));
 else
     fprintf('Note: SD_POST files not downloaded. Skipping snow depth plot.\n');
@@ -151,18 +158,20 @@ set(gcf, 'Position', [50 50 1600 500], 'Color', 'w');
 subplot(1, 3, 1);
 imagesc(lon, lat, SWE_map * 100);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
-hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2); hold off;
+hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r'); hold off;
 colorbar; colormap(gca, parula);
 title(sprintf('SWE [cm]\n%s', dateStr));
-xlabel('Lon'); ylabel('Lat'); axis tight;
+xlabel('Lon'); ylabel('Lat'); daspect([1 1 1]); axis tight;
 
 subplot(1, 3, 2);
 imagesc(lon, lat, fSCA_map * 100);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
-hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2); hold off;
+hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r'); hold off;
 colorbar; caxis([0 100]);
 title(sprintf('fSCA [%%]\n%s', dateStr));
-xlabel('Lon'); ylabel('Lat'); axis tight;
+xlabel('Lon'); ylabel('Lat'); daspect([1 1 1]); axis tight;
 
 subplot(1, 3, 3);
 if hasSD
@@ -178,9 +187,10 @@ else
     end
 end
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
-hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2); hold off;
+hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r'); hold off;
 colorbar; colormap(gca, parula);
-xlabel('Lon'); ylabel('Lat'); axis tight;
+xlabel('Lon'); ylabel('Lat'); daspect([1 1 1]); axis tight;
 
 sgtitle(sprintf('UCLA Snow Reanalysis - Boise River Basin - %s', wyStrTitle), ...
     'FontSize', 16, 'FontWeight', 'bold');
@@ -242,7 +252,8 @@ if size(SWE, 3) >= 2
 
     imagesc(lon, lat, SWE_std);
     set(gca, 'YDir', 'normal');
-    hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2); hold off;
+    hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+    plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r'); hold off;
     colorbar;
     colormap(hot);
     set(gca, 'FontSize', 14, 'FontWeight', 'bold', 'LineWidth', 1.5);
@@ -250,7 +261,7 @@ if size(SWE, 3) >= 2
     ylabel('Latitude [deg]');
     title(sprintf('UCLA SR - SWE Uncertainty (1\\sigma) [cm] - %s\nBoise River Basin, %s', ...
         dateStr, wyStrTitle), 'FontSize', 14);
-    axis tight;
+    daspect([1 1 1]); axis tight;
     print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SWE_uncertainty_%s_day%03d.png', wyStr, targetDate)));
 end
 
