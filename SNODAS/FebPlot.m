@@ -1,0 +1,16 @@
+filename='2014/02_Feb/S2014-2-15'
+hfig=figure;clf; 
+set(hfig,'position',[1 35 1280 671])
+subplot(2,3,1)
+h=plotSNODASvar(filename,1,[0 200])
+title('RainPrecip')
+subplot(2,3,2)
+h=plotSNODASvar(filename,3,[0 200])
+subplot(2,3,3)
+h=plotSNODASvar(filename,4,[0 500])
+subplot(2,3,4)
+h=plotSNODASvar(filename,5,[0 2000])
+subplot(2,3,5)
+h=plotSNODASvar(filename,6,[270 273])
+subplot(2,3,6)
+h=plotSNODASvar(filename,8,[0 2000])

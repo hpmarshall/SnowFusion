@@ -1,0 +1,49 @@
+% plotSNODASvar
+% HPM 02/15/14
+% plots selected variable from SNODAS file
+% INPUT: filename = name of mat file downloaded using getSNODASall
+%            Svar = variable number
+
+function h=plotSNODASvar2(filename,r2)
+
+load(filename)
+% get UTM coordinates
+BB=[-117 -114 42 45];
+Ix=find(lon>BB(1) & lon<BB(2));
+Iy=find(lat>BB(3) & lat<BB(4));
+myUTM=utmzone(mean(lat(Ix)),mean(lon(Iy))); % use range of lat/lon to get zone
+mstruct = defaultm('utm');
+mstruct.zone = myUTM;
+mstruct = defaultm(mstruct);
+[LON,LAT]=meshgrid(lon(Iy),lat(Ix));
+[X,Y] = mfwdtran(mstruct,LAT,LON);
+% now convert SNOTEL coordinates
+[X2,Y2]=mfwdtran(mstruct,[r2(:).Lat],[r2(:).Lon]);
+BB2=[5.71e5 7.15e5 4.78e6 4.915e6]; % bounding box for area of interest
+I2=find(X2>=BB2(1) & X2<=BB2(2) & Y2>=BB2(3) & Y2<=BB2(4));
+X2=X2(I2);Y2=Y2(I2); r2=r2(I2);
+x=X(1,:); y=Y(:,1);
+hfig=figure;clf; 
+set(hfig,'position',[1 35 1280 671])
+Iz=[1 4 6 3 5 8];
+maxz=[200 500 273 200 2000 2000];
+for q=1:6
+    subplot(2,3,q)
+    D=r(Iz(q)).data(Ix,Iy)';
+    I3=find(D<=0);
+    D(I3)=NaN;
+    h=imagesc(x,y,D,[nanmin(D(:)) maxz(q)]); set(gca,'YDir','normal');
+    colorbar; set(gca,'YDir','normal','FontSize',14,'FontWeight','bold','LineWidth',3); 
+    title(r(Iz(q)).name)
+    xlabel('UTM zone 11T Easting'); ylabel('UTM zone 11T Northing')
+    axis equal; axis tight
+    [S,A]=shaperead('BRB_outline.shp'); hold on
+    Amap=ones(size(D)); Amap(isnan(D))=0; Amap(D==0)=0;
+    alpha(Amap)
+    plot(S.X,S.Y,'k-','LineWidth',3)
+    axis([5.71e5 7.15e5 4.78e6 4.91e6])
+    plot(X2,Y2,'k+','LineWidth',2,'MarkerSize',6)
+    for m=1:length(X2)
+        text(X2(m),Y2(m),r2(m).Name,'FontSize',8,'FontWeight','bold')
+    end
+end
