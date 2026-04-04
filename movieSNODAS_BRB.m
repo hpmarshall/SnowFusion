@@ -104,6 +104,10 @@ if hasShp
     end
 end
 
+%% ====== LOAD SNOTEL SITES ======
+snotel = getSNOTEL_BRB();
+fprintf('Loaded %d SNOTEL stations\n', snotel.nStations);
+
 %% ====== SET UP FIGURE ======
 hfig = figure('Position', [100 100 1000 800], 'Color', 'w', ...
     'Renderer', 'opengl');
@@ -128,7 +132,11 @@ if license('test', 'map_toolbox')
         hold on;
         plot3m(Shp.lat, Shp.lon, 100*ones(size(Shp.lat)), ...
             'Color', [0.3 0.3 0.3], 'LineWidth', 3);
+    else
+        hold on;
     end
+    plot3m(snotel.lat, snotel.lon, 100*ones(size(snotel.lat)), ...
+        'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
     setm(ax, 'FontSize', 14, 'FontWeight', 'bold');
     useMap = true;
 else
@@ -137,6 +145,10 @@ else
     set(gca, 'YDir', 'normal');
     set(hG, 'AlphaData', Amap);
     hold on;
+    if hasShp
+        plot(Shp.lon, Shp.lat, 'k-', 'LineWidth', 2);
+    end
+    plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
     colormap(cMap);
     caxis(cRange);
     hcb = colorbar;

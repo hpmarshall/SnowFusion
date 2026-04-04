@@ -42,6 +42,9 @@ SnowFusion/
   mosaicUCLA_SR.m       Function: read and mosaic 1-deg x 1-deg NetCDF tiles
   getUCLA_SWE.m         Function: load UCLA tiles, extract ensemble stats for a region
 
+  -- Ground Truth --
+  getSNOTEL_BRB.m       Function: returns SNOTEL station locations in the BRB
+
   -- Visualization --
   plotSNODAS_BRB.m      Script: 6 publication-quality figures from SNODAS data
   plotUCLA_SR_BRB.m     Script: 6 publication-quality figures from UCLA SR data
@@ -227,7 +230,29 @@ apr1_mean_swe = SWE(:,:,1,183);  % ensemble mean SWE on April 1
 
 ---
 
+### Ground Truth
+
+#### `getSNOTEL_BRB()`
+
+Return SNOTEL station locations for the Boise River Basin. Returns a structure with 9 verified stations (from the NRCS National Water and Climate Center) including name, site number, latitude, longitude, and elevation.
+
+```matlab
+snotel = getSNOTEL_BRB();
+fprintf('%d stations loaded\n', snotel.nStations);
+
+% Plot stations on a map
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
+```
+
+**Output:** Structure with fields `.name` (cell array), `.siteNum`, `.lat`, `.lon`, `.elev_ft`, `.nStations`
+
+**Stations:** Atlanta Summit (306), Banner Summit (312), Deadwood Summit (436), Graham Guard Sta. (496), Jackson Peak (550), Mores Creek Summit (637), Prairie (710), Trinity Mountain (830), Bogus Basin (978)
+
+---
+
 ### Visualization
+
+All visualization scripts and functions overlay the BRB outline (black line) and SNOTEL station locations (filled red pentagrams) on every map. The generic functions `plotSnowVar` and `makeSnowMovie` accept a `'snotel'` name-value parameter (`true` by default) to toggle the SNOTEL overlay.
 
 #### `plotSnowVar(dataStruct, varName, targetDate, ...)`
 
@@ -254,7 +279,7 @@ plotSnowVar(UCLA, 'SWE_mean', '2020-04-01', ...
 plotSnowVar(UCLA, 'fSCA_mean', '2020-03-15');
 ```
 
-**Name-Value Options:** `'clim'`, `'cmap'`, `'title'`, `'shapefile'`, `'figHandle'`, `'saveFig'`, `'units'`, `'latlim'`, `'lonlim'`
+**Name-Value Options:** `'clim'`, `'cmap'`, `'title'`, `'shapefile'`, `'figHandle'`, `'saveFig'`, `'units'`, `'latlim'`, `'lonlim'`, `'snotel'` (default `true`)
 
 **Supported SNODAS variables:** `SWE`, `Depth`, `Precip`, `SnowPrecip`, `Tsnow`, `Melt`, `Sublimation`, `SublimationBS`
 
@@ -287,7 +312,7 @@ makeSnowMovie(Snodas, 'Melt', 'Melt_spring.mp4', ...
     'quality', 95);
 ```
 
-**Name-Value Options:** `'clim'`, `'cmap'`, `'fps'`, `'quality'`, `'shapefile'`, `'dateRange'`, `'titlePrefix'`, `'skipDays'`, `'latlim'`, `'lonlim'`, `'figSize'`
+**Name-Value Options:** `'clim'`, `'cmap'`, `'fps'`, `'quality'`, `'shapefile'`, `'dateRange'`, `'titlePrefix'`, `'skipDays'`, `'latlim'`, `'lonlim'`, `'figSize'`, `'snotel'` (default `true`)
 
 ---
 
@@ -366,6 +391,7 @@ The BRB shapefile (`BRB_outline.shp`) is in UTM Zone 11N (NAD83). All scripts ha
 | `getUCLA_SR_BRB.m` | Script | UCLA SR NetCDF tile downloader for BRB |
 | `mosaicUCLA_SR.m` | Function | Mosaic 1-deg UCLA tiles into continuous grid |
 | `getUCLA_SWE.m` | Function | Load UCLA tiles with ensemble statistics |
+| `getSNOTEL_BRB.m` | Function | SNOTEL station locations for the BRB (9 stations) |
 | `plotSNODAS_BRB.m` | Script | 6-figure SNODAS visualization suite |
 | `plotUCLA_SR_BRB.m` | Script | 6-figure UCLA SR visualization suite |
 | `plotSnowVar.m` | Function | Generic single-date snow map (works with both sources) |

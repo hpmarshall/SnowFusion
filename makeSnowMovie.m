@@ -50,6 +50,7 @@ addParameter(p, 'skipDays', 1, @isnumeric);
 addParameter(p, 'latlim', [], @(x) isnumeric(x) && length(x)==2);
 addParameter(p, 'lonlim', [], @(x) isnumeric(x) && length(x)==2);
 addParameter(p, 'figSize', [1280 720], @(x) isnumeric(x) && length(x)==2);
+addParameter(p, 'snotel', true, @islogical);
 parse(p, dataStruct, varName, movieFile, varargin{:});
 opts = p.Results;
 
@@ -178,6 +179,13 @@ if ~isempty(opts.shapefile) && exist(opts.shapefile, 'file')
         plot3m(Shp.Y, Shp.X, 100*ones(size(Shp.X)), ...
             'Color', [0.3 0.3 0.3], 'LineWidth', 2.5);
     end
+end
+
+% Overlay SNOTEL sites
+if opts.snotel
+    snotel = getSNOTEL_BRB();
+    plot3m(snotel.lat, snotel.lon, 100*ones(size(snotel.lat)), ...
+        'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 end
 
 % Title

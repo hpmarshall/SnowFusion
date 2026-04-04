@@ -70,6 +70,7 @@ addParameter(p, 'saveFig', '', @ischar);
 addParameter(p, 'units', '', @ischar);
 addParameter(p, 'latlim', [], @(x) isnumeric(x) && length(x)==2);
 addParameter(p, 'lonlim', [], @(x) isnumeric(x) && length(x)==2);
+addParameter(p, 'snotel', true, @islogical);
 parse(p, dataStruct, varName, targetDate, varargin{:});
 opts = p.Results;
 
@@ -208,6 +209,13 @@ if ~isempty(opts.shapefile) && exist(opts.shapefile, 'file')
         plot3m(Shp.Y, Shp.X, 100*ones(size(Shp.X)), ...
             'Color', [0.3 0.3 0.3], 'LineWidth', 3);
     end
+end
+
+%% Overlay SNOTEL sites
+if opts.snotel
+    snotel = getSNOTEL_BRB();
+    plot3m(snotel.lat, snotel.lon, 100*ones(size(snotel.lat)), ...
+        'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 end
 
 %% Title

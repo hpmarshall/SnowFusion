@@ -98,6 +98,10 @@ else
     inBRB = true(size(LON));
 end
 
+%% ====== LOAD SNOTEL SITES ======
+snotel = getSNOTEL_BRB();
+fprintf('Loaded %d SNOTEL stations\n', snotel.nStations);
+
 %% ====== EXTRACT DATA FOR TARGET DATE ======
 [~, dayIdx] = min(abs(Snodas.dates - targetDate));
 actualDate = Snodas.dates(dayIdx);
@@ -125,6 +129,7 @@ hold on;
 if hasShapefile
     plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
 end
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 hold off;
 
 colorbar;
@@ -148,6 +153,7 @@ hold on;
 if hasShapefile
     plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
 end
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 hold off;
 
 colorbar;
@@ -171,6 +177,7 @@ hold on;
 if hasShapefile
     plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
 end
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 hold off;
 
 colorbar;
@@ -194,6 +201,7 @@ imagesc(lon, lat, SWE_map * 100);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on;
 if hasShapefile, plot(S_lon, S_lat, 'k-', 'LineWidth', 2); end
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
 hold off;
 colorbar; colormap(gca, parula);
 title(sprintf('SWE [cm]\n%s', dateStr));
@@ -204,6 +212,7 @@ imagesc(lon, lat, Depth_map * 100);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on;
 if hasShapefile, plot(S_lon, S_lat, 'k-', 'LineWidth', 2); end
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
 hold off;
 colorbar; colormap(gca, parula);
 title(sprintf('Snow Depth [cm]\n%s', dateStr));
@@ -214,6 +223,7 @@ imagesc(lon, lat, Melt_map * 1000);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on;
 if hasShapefile, plot(S_lon, S_lat, 'k-', 'LineWidth', 2); end
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
 hold off;
 colorbar;
 cmap_melt3 = [1 1 1; flipud(autumn(255))];
@@ -328,6 +338,7 @@ hold on;
 if hasShapefile
     plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
 end
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 hold off;
 
 colorbar;

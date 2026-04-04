@@ -60,6 +60,10 @@ inBRB = inpolygon(LON, LAT, S_lon, S_lat);
 fprintf('Pixels inside BRB: %d of %d (%.1f%%)\n', ...
     sum(inBRB(:)), numel(inBRB), 100*sum(inBRB(:))/numel(inBRB));
 
+%% ====== LOAD SNOTEL SITES ======
+snotel = getSNOTEL_BRB();
+fprintf('Loaded %d SNOTEL stations\n', snotel.nStations);
+
 %% ====== EXTRACT DATA FOR TARGET DATE ======
 % Get ensemble mean for target date
 SWE_map  = SWE(:, :, ensIdx, targetDate);   % [m]
@@ -84,6 +88,7 @@ imagesc(lon, lat, SWE_map * 100); % convert m to cm
 set(gca, 'YDir', 'normal');
 hold on;
 plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 hold off;
 
 colorbar;
@@ -105,6 +110,7 @@ imagesc(lon, lat, fSCA_map * 100); % convert to percent
 set(gca, 'YDir', 'normal');
 hold on;
 plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 hold off;
 
 colorbar;
@@ -127,6 +133,7 @@ imagesc(lon, lat, SD_map * 100); % convert m to cm
 set(gca, 'YDir', 'normal');
 hold on;
 plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 hold off;
 
 colorbar;
@@ -147,7 +154,8 @@ set(gcf, 'Position', [50 50 1600 500], 'Color', 'w');
 subplot(1, 3, 1);
 imagesc(lon, lat, SWE_map * 100);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
-hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2); hold off;
+hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r'); hold off;
 colorbar; colormap(gca, parula);
 title(sprintf('SWE [cm]\n%s', dateStr));
 xlabel('Lon'); ylabel('Lat'); axis tight;
@@ -155,7 +163,8 @@ xlabel('Lon'); ylabel('Lat'); axis tight;
 subplot(1, 3, 2);
 imagesc(lon, lat, fSCA_map * 100);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
-hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2); hold off;
+hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r'); hold off;
 colorbar; caxis([0 100]);
 title(sprintf('fSCA [%%]\n%s', dateStr));
 xlabel('Lon'); ylabel('Lat'); axis tight;
@@ -163,7 +172,8 @@ xlabel('Lon'); ylabel('Lat'); axis tight;
 subplot(1, 3, 3);
 imagesc(lon, lat, SD_map * 100);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
-hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2); hold off;
+hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r'); hold off;
 colorbar; colormap(gca, parula);
 title(sprintf('Snow Depth [cm]\n%s', dateStr));
 xlabel('Lon'); ylabel('Lat'); axis tight;
@@ -228,7 +238,8 @@ if size(SWE, 3) >= 2
 
     imagesc(lon, lat, SWE_std);
     set(gca, 'YDir', 'normal');
-    hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2); hold off;
+    hold on; plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r'); hold off;
     colorbar;
     colormap(hot);
     set(gca, 'FontSize', 14, 'FontWeight', 'bold', 'LineWidth', 1.5);
