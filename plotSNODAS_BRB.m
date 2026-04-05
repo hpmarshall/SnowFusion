@@ -50,15 +50,14 @@ lon = Snodas.lon;
 fprintf('Grid size: %d lat x %d lon\n', length(lat), length(lon));
 
 %% ====== LOAD AND CONVERT BRB SHAPEFILE ======
+proj = projcrs(26911);  % NAD83 / UTM Zone 11N
+
 fprintf('Loading BRB shapefile...\n');
 if exist(shpFile, 'file')
     [S, A] = shaperead(shpFile);
 
-    % Shapefile is in UTM Zone 11N (NAD83) - convert to geographic coordinates
-    mstruct = defaultm('utm');
-    mstruct.zone = '11T';  % UTM Zone 11 (covers BRB)
-    mstruct = defaultm(mstruct);
-    [S_lat, S_lon] = minvtran(mstruct, S.X, S.Y);
+    % Shapefile is in NAD83 UTM Zone 11N - convert to geographic coordinates
+    [S_lat, S_lon] = projinv(proj, S.X, S.Y);
 
     % Remove NaN boundary markers for polygon operations
     validIdx = ~isnan(S_lat) & ~isnan(S_lon);
@@ -102,11 +101,30 @@ else
 end
 
 %% ====== LOAD SNOTEL SITES ======
-snotel = getSNOTEL_BRB();
-fprintf('Loaded %d SNOTEL stations\n', snotel.nStations);
+% Read from shapefile, pre-filter to BRB bounding box, then clip to polygon
+snotelShp = fullfile(scriptDir, 'SNOTEL/IDDCO_2020_automated_sites.shp');
+if hasShapefile
+    latLim = [min(S_lat(validIdx)) max(S_lat(validIdx))];
+    lonLim = [min(S_lon(validIdx)) max(S_lon(validIdx))];
+else
+    latLim = [43.0 44.5];
+    lonLim = [-116.3 -114.3];
+end
+snotel = getSNOTEL_BRB(snotelShp, latLim, lonLim);
+
+% Keep only sites strictly inside the BRB polygon
+if hasShapefile
+    inBRB_snotel = inpolygon(snotel.lon, snotel.lat, S_lon, S_lat);
+    snotel.name      = snotel.name(inBRB_snotel);
+    snotel.siteNum   = snotel.siteNum(inBRB_snotel);
+    snotel.lat       = snotel.lat(inBRB_snotel);
+    snotel.lon       = snotel.lon(inBRB_snotel);
+    snotel.elev_ft   = snotel.elev_ft(inBRB_snotel);
+    snotel.nStations = sum(inBRB_snotel);
+end
+fprintf('Loaded %d SNOTEL stations within BRB\n', snotel.nStations);
 
 %% ====== SET UP PLOTTING COORDINATES ======
-proj = projcrs(26911);  % NAD83 / UTM Zone 11N
 if useUTM
     % Convert data grid to UTM (km)
     [E_grid, N_grid] = projfwd(proj, LAT, LON);
@@ -158,6 +176,11 @@ SWE_map(~inBRB)   = NaN;
 Depth_map(~inBRB) = NaN;
 Melt_map(~inBRB)  = NaN;
 
+% Set zero values to NaN so they render transparent in all plots
+SWE_map(SWE_map == 0)     = NaN;
+Depth_map(Depth_map == 0) = NaN;
+Melt_map(Melt_map == 0)   = NaN;
+
 %% ====== FIGURE 1: SWE MAP ======
 figure(1); clf;
 set(gcf, 'Position', [50 50 900 700], 'Color', 'w');
@@ -179,11 +202,11 @@ colorbar;
 colormap(parula);
 caxis([0 max(SWE_map(:)*100, [], 'omitnan')]);
 set(gca, 'FontSize', 14, 'FontWeight', 'bold', 'LineWidth', 1.5);
-xlabel('Longitude [deg]');
-ylabel('Latitude [deg]');
+xlabel(xLabel);
+ylabel(yLabel);
 title(sprintf('SNODAS - SWE [cm] - %s\nBoise River Basin, WY%d', dateStr, WY), ...
     'FontSize', 16);
-daspect([1 1 1]); axis tight;
+axis equal tight;
 print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SNODAS_SWE_WY%d_day%03d.png', WY, dayIdx)));
 
 %% ====== FIGURE 2: SNOW DEPTH MAP ======
@@ -207,11 +230,11 @@ colorbar;
 colormap(parula);
 caxis([0 max(Depth_map(:)*100, [], 'omitnan')]);
 set(gca, 'FontSize', 14, 'FontWeight', 'bold', 'LineWidth', 1.5);
-xlabel('Longitude [deg]');
-ylabel('Latitude [deg]');
+xlabel(xLabel);
+ylabel(yLabel);
 title(sprintf('SNODAS - Snow Depth [cm] - %s\nBoise River Basin, WY%d', dateStr, WY), ...
     'FontSize', 16);
-daspect([1 1 1]); axis tight;
+axis equal tight;
 print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SNODAS_Depth_WY%d_day%03d.png', WY, dayIdx)));
 
 %% ====== FIGURE 3: DAILY MELT MAP ======
@@ -236,11 +259,11 @@ cmap_melt = [1 1 1; flipud(autumn(255))]; % white for 0, warm colors for melt
 colormap(cmap_melt);
 caxis([0 max(Melt_map(:)*1000, [], 'omitnan')]);
 set(gca, 'FontSize', 14, 'FontWeight', 'bold', 'LineWidth', 1.5);
-xlabel('Longitude [deg]');
-ylabel('Latitude [deg]');
+xlabel(xLabel);
+ylabel(yLabel);
 title(sprintf('SNODAS - Daily Melt [mm] - %s\nBoise River Basin, WY%d', dateStr, WY), ...
     'FontSize', 16);
-daspect([1 1 1]); axis tight;
+axis equal tight;
 print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SNODAS_Melt_WY%d_day%03d.png', WY, dayIdx)));
 
 %% ====== FIGURE 4: 3-PANEL SUMMARY ======
@@ -252,35 +275,35 @@ imagesc(plot_x, plot_y, SWE_map * 100);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on;
 if hasShapefile, plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2); end
-plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
+plot(plot_snotel_x, plot_snotel_y, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
 hold off;
 colorbar; colormap(gca, parula);
 title(sprintf('SWE [cm]\n%s', dateStr));
-xlabel('Lon'); ylabel('Lat'); daspect([1 1 1]); axis tight;
+xlabel(xLabel); ylabel(yLabel); axis equal tight;
 
 subplot(1, 3, 2);
 imagesc(plot_x, plot_y, Depth_map * 100);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on;
 if hasShapefile, plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2); end
-plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
+plot(plot_snotel_x, plot_snotel_y, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
 hold off;
 colorbar; colormap(gca, parula);
 title(sprintf('Snow Depth [cm]\n%s', dateStr));
-xlabel('Lon'); ylabel('Lat'); daspect([1 1 1]); axis tight;
+xlabel(xLabel); ylabel(yLabel); axis equal tight;
 
 subplot(1, 3, 3);
 imagesc(plot_x, plot_y, Melt_map * 1000);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on;
 if hasShapefile, plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2); end
-plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
+plot(plot_snotel_x, plot_snotel_y, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
 hold off;
 colorbar;
 cmap_melt3 = [1 1 1; flipud(autumn(255))];
 colormap(gca, cmap_melt3);
 title(sprintf('Daily Melt [mm]\n%s', dateStr));
-xlabel('Lon'); ylabel('Lat'); daspect([1 1 1]); axis tight;
+xlabel(xLabel); ylabel(yLabel); axis equal tight;
 
 sgtitle(sprintf('SNODAS - Boise River Basin - WY%d', WY), ...
     'FontSize', 16, 'FontWeight', 'bold');
@@ -401,11 +424,11 @@ cmap_density = [1 1 1; parula(255)];
 colormap(gca, cmap_density);
 caxis([0 0.6]);
 set(gca, 'FontSize', 12, 'FontWeight', 'bold', 'LineWidth', 1.5);
-xlabel('Longitude [deg]');
-ylabel('Latitude [deg]');
+xlabel(xLabel);
+ylabel(yLabel);
 title(sprintf('SNODAS - Bulk Snow Density [SWE/Depth] - %s\nBoise River Basin, WY%d', ...
     dateStr, WY), 'FontSize', 14);
-daspect([1 1 1]); axis tight;
+axis equal tight;
 
 print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SNODAS_density_WY%d_day%03d.png', WY, dayIdx)));
 

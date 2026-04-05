@@ -61,8 +61,21 @@ fprintf('Pixels inside BRB: %d of %d (%.1f%%)\n', ...
     sum(inBRB(:)), numel(inBRB), 100*sum(inBRB(:))/numel(inBRB));
 
 %% ====== LOAD SNOTEL SITES ======
-snotel = getSNOTEL_BRB();
-fprintf('Loaded %d SNOTEL stations\n', snotel.nStations);
+% Read from shapefile, pre-filter to BRB bounding box, then clip to polygon
+snotelShp = 'SNOTEL/IDDCO_2020_automated_sites.shp';
+latLim = [min(S_lat(validIdx)) max(S_lat(validIdx))];
+lonLim = [min(S_lon(validIdx)) max(S_lon(validIdx))];
+snotel = getSNOTEL_BRB(snotelShp, latLim, lonLim);
+
+% Keep only sites strictly inside the BRB polygon
+inBRB_snotel = inpolygon(snotel.lon, snotel.lat, S_lon, S_lat);
+snotel.name      = snotel.name(inBRB_snotel);
+snotel.siteNum   = snotel.siteNum(inBRB_snotel);
+snotel.lat       = snotel.lat(inBRB_snotel);
+snotel.lon       = snotel.lon(inBRB_snotel);
+snotel.elev_ft   = snotel.elev_ft(inBRB_snotel);
+snotel.nStations = sum(inBRB_snotel);
+fprintf('Loaded %d SNOTEL stations within BRB\n', snotel.nStations);
 
 %% ====== SET UP PLOTTING COORDINATES ======
 if useUTM
@@ -101,6 +114,11 @@ end
 SWE_map  = SWE(:, :, ensIdx, targetDate);   % [m]
 fSCA_map = fSCA(:, :, ensIdx, targetDate);   % [0-1]
 SD_map   = SD(:, :, ensIdx, targetDate);     % [m]
+
+% Set zero values to NaN so they render transparent in all plots
+SWE_map(SWE_map == 0)   = NaN;
+fSCA_map(fSCA_map == 0) = NaN;
+SD_map(SD_map == 0)     = NaN;
 
 % Keep all data in bounding box (don't mask to BRB polygon)
 % The BRB outline is still plotted for reference
@@ -296,6 +314,7 @@ set(gcf, 'Position', [50 50 900 700], 'Color', 'w');
 if size(SWE, 3) >= 2
     SWE_std = SWE(:, :, 2, targetDate) * 100; % cm
     SWE_std(~inBRB) = NaN;
+    SWE_std(SWE_std == 0) = NaN;
 
     imagesc(plot_x, plot_y, SWE_std);
     set(gca, 'YDir', 'normal');
