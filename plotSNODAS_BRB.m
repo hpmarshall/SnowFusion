@@ -33,6 +33,9 @@ WY      = 2021;                              % Water year
 % Date of interest (standard: April 1 for peak SWE assessment)
 targetDate = datenum(WY, 4, 1);
 
+% Coordinate system: true = UTM Zone 11N [km], false = geographic [deg]
+useUTM = true;
+
 %% ====== LOAD DATA ======
 matFile = fullfile(dataDir, sprintf('SNODAS_BRB_WY%d.mat', WY));
 if ~exist(matFile, 'file')
@@ -102,6 +105,42 @@ end
 snotel = getSNOTEL_BRB();
 fprintf('Loaded %d SNOTEL stations\n', snotel.nStations);
 
+%% ====== SET UP PLOTTING COORDINATES ======
+proj = projcrs(26911);  % NAD83 / UTM Zone 11N
+if useUTM
+    % Convert data grid to UTM (km)
+    [E_grid, N_grid] = projfwd(proj, LAT, LON);
+    plot_x = E_grid(1,:) / 1000;
+    plot_y = N_grid(:,1) / 1000;
+
+    % Shapefile: use native UTM coordinates
+    if hasShapefile
+        plot_shp_x = S.X / 1000;
+        plot_shp_y = S.Y / 1000;
+    end
+
+    % SNOTEL to UTM
+    [snotel_e, snotel_n] = projfwd(proj, snotel.lat, snotel.lon);
+    plot_snotel_x = snotel_e / 1000;
+    plot_snotel_y = snotel_n / 1000;
+
+    xLabel = 'Easting [km]';
+    yLabel = 'Northing [km]';
+    fprintf('Using UTM Zone 11N coordinates [km]\n');
+else
+    plot_x = lon;
+    plot_y = lat;
+    if hasShapefile
+        plot_shp_x = S_lon;
+        plot_shp_y = S_lat;
+    end
+    plot_snotel_x = snotel.lon;
+    plot_snotel_y = snotel.lat;
+    xLabel = 'Longitude [deg]';
+    yLabel = 'Latitude [deg]';
+    fprintf('Using geographic coordinates [deg]\n');
+end
+
 %% ====== EXTRACT DATA FOR TARGET DATE ======
 [~, dayIdx] = min(abs(Snodas.dates - targetDate));
 actualDate = Snodas.dates(dayIdx);
@@ -123,13 +162,17 @@ Melt_map(~inBRB)  = NaN;
 figure(1); clf;
 set(gcf, 'Position', [50 50 900 700], 'Color', 'w');
 
-imagesc(lon, lat, SWE_map * 100); % convert m to cm
+imagesc(plot_x, plot_y, SWE_map * 100); % convert m to cm
 set(gca, 'YDir', 'normal');
 hold on;
 if hasShapefile
-    plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+    plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2);
 end
-plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
+plot(plot_snotel_x, plot_snotel_y, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
+for si = 1:snotel.nStations
+    text(plot_snotel_x(si), plot_snotel_y(si), ['  ' snotel.name{si}], ...
+        'FontSize', 8, 'FontWeight', 'bold', 'Color', 'r');
+end
 hold off;
 
 colorbar;
@@ -147,13 +190,17 @@ print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SNODAS_SWE_WY%d_day%03d.p
 figure(2); clf;
 set(gcf, 'Position', [100 50 900 700], 'Color', 'w');
 
-imagesc(lon, lat, Depth_map * 100); % convert m to cm
+imagesc(plot_x, plot_y, Depth_map * 100); % convert m to cm
 set(gca, 'YDir', 'normal');
 hold on;
 if hasShapefile
-    plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+    plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2);
 end
-plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
+plot(plot_snotel_x, plot_snotel_y, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
+for si = 1:snotel.nStations
+    text(plot_snotel_x(si), plot_snotel_y(si), ['  ' snotel.name{si}], ...
+        'FontSize', 8, 'FontWeight', 'bold', 'Color', 'r');
+end
 hold off;
 
 colorbar;
@@ -171,13 +218,17 @@ print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SNODAS_Depth_WY%d_day%03d
 figure(3); clf;
 set(gcf, 'Position', [150 50 900 700], 'Color', 'w');
 
-imagesc(lon, lat, Melt_map * 1000); % convert m to mm
+imagesc(plot_x, plot_y, Melt_map * 1000); % convert m to mm
 set(gca, 'YDir', 'normal');
 hold on;
 if hasShapefile
-    plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+    plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2);
 end
-plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
+plot(plot_snotel_x, plot_snotel_y, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
+for si = 1:snotel.nStations
+    text(plot_snotel_x(si), plot_snotel_y(si), ['  ' snotel.name{si}], ...
+        'FontSize', 8, 'FontWeight', 'bold', 'Color', 'r');
+end
 hold off;
 
 colorbar;
@@ -197,10 +248,10 @@ figure(4); clf;
 set(gcf, 'Position', [50 50 1600 500], 'Color', 'w');
 
 subplot(1, 3, 1);
-imagesc(lon, lat, SWE_map * 100);
+imagesc(plot_x, plot_y, SWE_map * 100);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on;
-if hasShapefile, plot(S_lon, S_lat, 'k-', 'LineWidth', 2); end
+if hasShapefile, plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2); end
 plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
 hold off;
 colorbar; colormap(gca, parula);
@@ -208,10 +259,10 @@ title(sprintf('SWE [cm]\n%s', dateStr));
 xlabel('Lon'); ylabel('Lat'); daspect([1 1 1]); axis tight;
 
 subplot(1, 3, 2);
-imagesc(lon, lat, Depth_map * 100);
+imagesc(plot_x, plot_y, Depth_map * 100);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on;
-if hasShapefile, plot(S_lon, S_lat, 'k-', 'LineWidth', 2); end
+if hasShapefile, plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2); end
 plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
 hold off;
 colorbar; colormap(gca, parula);
@@ -219,10 +270,10 @@ title(sprintf('Snow Depth [cm]\n%s', dateStr));
 xlabel('Lon'); ylabel('Lat'); daspect([1 1 1]); axis tight;
 
 subplot(1, 3, 3);
-imagesc(lon, lat, Melt_map * 1000);
+imagesc(plot_x, plot_y, Melt_map * 1000);
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on;
-if hasShapefile, plot(S_lon, S_lat, 'k-', 'LineWidth', 2); end
+if hasShapefile, plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2); end
 plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
 hold off;
 colorbar;
@@ -332,13 +383,17 @@ validPx = SWE_map > 0 & Depth_map > 0 & ~isnan(SWE_map) & ~isnan(Depth_map);
 density_map(validPx) = SWE_map(validPx) ./ Depth_map(validPx);
 density_map(~inBRB) = NaN;
 
-imagesc(lon, lat, density_map);
+imagesc(plot_x, plot_y, density_map);
 set(gca, 'YDir', 'normal');
 hold on;
 if hasShapefile
-    plot(S_lon, S_lat, 'k-', 'LineWidth', 2);
+    plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2);
 end
-plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
+plot(plot_snotel_x, plot_snotel_y, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
+for si = 1:snotel.nStations
+    text(plot_snotel_x(si), plot_snotel_y(si), ['  ' snotel.name{si}], ...
+        'FontSize', 8, 'FontWeight', 'bold', 'Color', 'r');
+end
 hold off;
 
 colorbar;
