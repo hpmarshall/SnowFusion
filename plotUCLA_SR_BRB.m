@@ -61,21 +61,10 @@ fprintf('Pixels inside BRB: %d of %d (%.1f%%)\n', ...
     sum(inBRB(:)), numel(inBRB), 100*sum(inBRB(:))/numel(inBRB));
 
 %% ====== LOAD SNOTEL SITES ======
-% Read from shapefile, pre-filter to BRB bounding box, then clip to polygon
+% Filter to the data grid extent (all sites visible in the plotted region)
 snotelShp = 'SNOTEL/IDDCO_2020_automated_sites.shp';
-latLim = [min(S_lat(validIdx)) max(S_lat(validIdx))];
-lonLim = [min(S_lon(validIdx)) max(S_lon(validIdx))];
-snotel = getSNOTEL_BRB(snotelShp, latLim, lonLim);
-
-% Keep only sites strictly inside the BRB polygon
-inBRB_snotel = inpolygon(snotel.lon, snotel.lat, S_lon, S_lat);
-snotel.name      = snotel.name(inBRB_snotel);
-snotel.siteNum   = snotel.siteNum(inBRB_snotel);
-snotel.lat       = snotel.lat(inBRB_snotel);
-snotel.lon       = snotel.lon(inBRB_snotel);
-snotel.elev_ft   = snotel.elev_ft(inBRB_snotel);
-snotel.nStations = sum(inBRB_snotel);
-fprintf('Loaded %d SNOTEL stations within BRB\n', snotel.nStations);
+snotel = getSNOTEL_BRB(snotelShp, [min(lat) max(lat)], [min(lon) max(lon)]);
+fprintf('Loaded %d SNOTEL stations within plotted region\n', snotel.nStations);
 
 %% ====== SET UP PLOTTING COORDINATES ======
 if useUTM
@@ -135,7 +124,8 @@ wyStrTitle = strrep(wyStr, '_', '\_');
 figure(1); clf;
 set(gcf, 'Position', [50 50 900 700], 'Color', 'w');
 
-imagesc(plot_x, plot_y, SWE_map * 100); % convert m to cm
+h = imagesc(plot_x, plot_y, SWE_map * 100); % convert m to cm
+set(h, 'AlphaData', ~isnan(SWE_map));
 set(gca, 'YDir', 'normal');
 hold on;
 plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2);
@@ -161,7 +151,8 @@ print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SWE_%s_day%03d.png', wySt
 figure(2); clf;
 set(gcf, 'Position', [100 50 900 700], 'Color', 'w');
 
-imagesc(plot_x, plot_y, fSCA_map * 100); % convert to percent
+h = imagesc(plot_x, plot_y, fSCA_map * 100); % convert to percent
+set(h, 'AlphaData', ~isnan(fSCA_map));
 set(gca, 'YDir', 'normal');
 hold on;
 plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2);
@@ -190,7 +181,8 @@ if hasSD
     figure(3); clf;
     set(gcf, 'Position', [150 50 900 700], 'Color', 'w');
 
-    imagesc(plot_x, plot_y, SD_map * 100); % convert m to cm
+    h = imagesc(plot_x, plot_y, SD_map * 100); % convert m to cm
+    set(h, 'AlphaData', ~isnan(SD_map));
     set(gca, 'YDir', 'normal');
     hold on;
     plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2);
@@ -205,8 +197,8 @@ end
     colormap(parula);
     caxis([0 max(SD_map(:)*100, [], 'omitnan')]);
     set(gca, 'FontSize', 14, 'FontWeight', 'bold', 'LineWidth', 1.5);
-    xlabel('Longitude [deg]');
-    ylabel('Latitude [deg]');
+    xlabel(xLabel);
+    ylabel(yLabel);
     title(sprintf('UCLA SR - Snow Depth [cm] - %s\nBoise River Basin, %s', dateStr, wyStrTitle), ...
         'FontSize', 16);
     axis equal tight;
@@ -221,7 +213,8 @@ figure(4); clf;
 set(gcf, 'Position', [50 50 1600 500], 'Color', 'w');
 
 subplot(1, 3, 1);
-imagesc(plot_x, plot_y, SWE_map * 100);
+h = imagesc(plot_x, plot_y, SWE_map * 100);
+set(h, 'AlphaData', ~isnan(SWE_map));
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on; plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2);
 plot(plot_snotel_x, plot_snotel_y, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r'); hold off;
@@ -230,7 +223,8 @@ title(sprintf('SWE [cm]\n%s', dateStr));
 xlabel(xLabel); ylabel(yLabel); axis equal tight;
 
 subplot(1, 3, 2);
-imagesc(plot_x, plot_y, fSCA_map * 100);
+h = imagesc(plot_x, plot_y, fSCA_map * 100);
+set(h, 'AlphaData', ~isnan(fSCA_map));
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on; plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2);
 plot(plot_snotel_x, plot_snotel_y, 'rp', 'MarkerSize', 10, 'MarkerFaceColor', 'r'); hold off;
@@ -240,14 +234,16 @@ xlabel(xLabel); ylabel(yLabel); axis equal tight;
 
 subplot(1, 3, 3);
 if hasSD
-    imagesc(plot_x, plot_y, SD_map * 100);
+    h = imagesc(plot_x, plot_y, SD_map * 100);
+    set(h, 'AlphaData', ~isnan(SD_map));
     title(sprintf('Snow Depth [cm]\n%s', dateStr));
 else
     % Show SWE uncertainty instead if no SD data
     if size(SWE, 3) >= 2
         SWE_std_panel = SWE(:, :, 2, targetDate) * 100;
-        SWE_std_panel(~inBRB) = NaN;
-        imagesc(plot_x, plot_y, SWE_std_panel);
+        SWE_std_panel(SWE_std_panel == 0) = NaN;
+        h = imagesc(plot_x, plot_y, SWE_std_panel);
+        set(h, 'AlphaData', ~isnan(SWE_std_panel));
         title(sprintf('SWE Uncertainty [cm]\n%s', dateStr));
     end
 end
@@ -313,23 +309,23 @@ set(gcf, 'Position', [50 50 900 700], 'Color', 'w');
 % Ensemble std for target date
 if size(SWE, 3) >= 2
     SWE_std = SWE(:, :, 2, targetDate) * 100; % cm
-    SWE_std(~inBRB) = NaN;
     SWE_std(SWE_std == 0) = NaN;
 
-    imagesc(plot_x, plot_y, SWE_std);
+    h = imagesc(plot_x, plot_y, SWE_std);
+    set(h, 'AlphaData', ~isnan(SWE_std));
     set(gca, 'YDir', 'normal');
     hold on; plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2);
     plot(plot_snotel_x, plot_snotel_y, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 for si = 1:snotel.nStations
     text(plot_snotel_x(si), plot_snotel_y(si), ['  ' snotel.name{si}], ...
         'FontSize', 8, 'FontWeight', 'bold', 'Color', 'r');
-end 
+end
     hold off;
     colorbar;
-    colormap(hot);
+    colormap(parula);
     set(gca, 'FontSize', 14, 'FontWeight', 'bold', 'LineWidth', 1.5);
-    xlabel('Longitude [deg]');
-    ylabel('Latitude [deg]');
+    xlabel(xLabel);
+    ylabel(yLabel);
     title(sprintf('UCLA SR - SWE Uncertainty (1\\sigma) [cm] - %s\nBoise River Basin, %s', ...
         dateStr, wyStrTitle), 'FontSize', 14);
     axis equal tight;

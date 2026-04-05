@@ -130,106 +130,90 @@ if isempty(opts.titlePrefix)
     end
 end
 
-%% Set up the first frame
-hFig = figure('Renderer', 'opengl', 'Color', 'w');
-set(hFig, 'Position', [50 50 opts.figSize(1) opts.figSize(2)]);
-
-% Extract first frame data
-d = dayIdx(1);
-S = dataStruct.(varName)(:,:,d);
-if flipData, S = flipud(S); end
-Amap = ones(size(S));
-Amap(S == 0) = 0;
-Amap(isnan(S)) = 0;
-
-% Create the map
-hAx = usamap(latlim, lonlim);
-set(hAx, 'NextPlot', 'replacechildren');
-
-hGeo = geoshow(LAT, LON, S, 'DisplayType', 'texturemap');
-set(hGeo, 'FaceColor', 'texturemap', 'CData', S);
-set(hGeo, 'EdgeColor', 'none', 'FaceAlpha', 'texture', 'AlphaData', Amap);
-set(hGeo, 'BackFaceLighting', 'unlit');
-
-if ischar(opts.cmap)
-    colormap(opts.cmap);
-else
-    colormap(opts.cmap);
-end
-caxis(opts.clim);
-
-hC = colorbar('Location', 'southoutside');
-set(hC, 'FontSize', 11, 'FontWeight', 'bold');
-ylabel(hC, defUnits, 'FontSize', 12, 'FontWeight', 'bold');
-setm(hAx, 'FontSize', 12, 'FontWeight', 'bold');
-
-% Overlay shapefile
+%% Load static overlays once (outside frame loop)
+% Shapefile
+proj = projcrs(26911);  % NAD83 / UTM Zone 11N
+shpLat = [];  shpLon = [];
 if ~isempty(opts.shapefile) && exist(opts.shapefile, 'file')
-    hold on;
-    [Shp, ~] = shaperead(opts.shapefile);
-    if max(Shp.X) > 360
-        myUTM = utmzone(mean(latlim), mean(lonlim));
-        mstruct = defaultm('utm');
-        mstruct.zone = myUTM;
-        mstruct = defaultm(mstruct);
-        [Shp.lat, Shp.lon] = minvtran(mstruct, Shp.X, Shp.Y);
-        plot3m(Shp.lat, Shp.lon, 100*ones(size(Shp.lat)), ...
-            'Color', [0.3 0.3 0.3], 'LineWidth', 2.5);
+    [ShpData, ~] = shaperead(opts.shapefile);
+    if max(ShpData.X) > 360
+        [shpLat, shpLon] = projinv(proj, ShpData.X, ShpData.Y);
     else
-        plot3m(Shp.Y, Shp.X, 100*ones(size(Shp.X)), ...
-            'Color', [0.3 0.3 0.3], 'LineWidth', 2.5);
+        shpLat = ShpData.Y;
+        shpLon = ShpData.X;
     end
 end
 
-% Overlay SNOTEL sites
+% SNOTEL sites
+snotel = [];
 if opts.snotel
-    snotel = getSNOTEL_BRB();
-    plot3m(snotel.lat, snotel.lon, 100*ones(size(snotel.lat)), ...
-        'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
+    scriptDir = fileparts(mfilename('fullpath'));
+    snotelShp = fullfile(scriptDir, 'SNOTEL/IDDCO_2020_automated_sites.shp');
+    snotel = getSNOTEL_BRB(snotelShp, latlim, lonlim);
 end
 
-% Title
-dateStr = datestr(allDates(d), 'yyyy-mm-dd');
-hTitle = title(sprintf('%s  %s  %s', opts.titlePrefix, varName, dateStr), ...
-    'FontSize', 15, 'FontWeight', 'bold');
+%% Set up figure and video writer
+hFig = figure('Renderer', 'opengl', 'Color', 'w');
+set(hFig, 'Position', [50 50 opts.figSize(1) opts.figSize(2)]);
 
-drawnow;
-
-%% Set up video writer
 writerObj = VideoWriter(movieFile, 'MPEG-4');
 writerObj.FrameRate = opts.fps;
 writerObj.Quality = opts.quality;
 open(writerObj);
 
-% Write first frame
-frame = getframe(hFig);
-writeVideo(writerObj, frame);
-
-%% Loop over remaining frames
+%% Frame loop - redraw each frame for reliability
 fprintf('  Rendering frames: ');
 tic;
-for fi = 2:nFrames
+for fi = 1:nFrames
     d = dayIdx(fi);
 
-    % Extract data
+    % Extract and prep data
     S = dataStruct.(varName)(:,:,d);
     if flipData, S = flipud(S); end
-    Amap = ones(size(S));
-    Amap(S == 0) = 0;
-    Amap(isnan(S)) = 0;
+    Amap = double(S ~= 0 & ~isnan(S));
 
-    % Update the texture map
-    set(hGeo, 'CData', S, 'AlphaData', Amap);
+    % Clear and rebuild map axes
+    clf(hFig);
+    hAx = usamap(latlim, lonlim);
+    set(hAx, 'Color', 'w');
+    setm(hAx, 'FFaceColor', 'w');
 
-    % Update title with date
+    % Data layer
+    hGeo = geoshow(LAT, LON, S, 'DisplayType', 'texturemap');
+    set(hGeo, 'FaceColor', 'texturemap', 'CData', S);
+    set(hGeo, 'EdgeColor', 'none', 'FaceAlpha', 'texture', 'AlphaData', Amap);
+
+    colormap(opts.cmap);
+    caxis(opts.clim);
+
+    hC = colorbar('Location', 'southoutside');
+    set(hC, 'FontSize', 11, 'FontWeight', 'bold');
+    ylabel(hC, defUnits, 'FontSize', 12, 'FontWeight', 'bold');
+    setm(hAx, 'FontSize', 12, 'FontWeight', 'bold');
+
+    % Shapefile overlay
+    if ~isempty(shpLat)
+        hold on;
+        plot3m(shpLat, shpLon, 100*ones(size(shpLat)), ...
+            'Color', [0.3 0.3 0.3], 'LineWidth', 2.5);
+    end
+
+    % SNOTEL overlay
+    if ~isempty(snotel) && snotel.nStations > 0
+        hold on;
+        plot3m(snotel.lat, snotel.lon, 100*ones(size(snotel.lat)), ...
+            'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
+    end
+
+    % Title
     dateStr = datestr(allDates(d), 'yyyy-mm-dd');
-    set(hTitle, 'String', sprintf('%s  %s  %s', opts.titlePrefix, varName, dateStr));
+    title(sprintf('%s  %s  %s', opts.titlePrefix, varName, dateStr), ...
+        'FontSize', 15, 'FontWeight', 'bold');
 
     drawnow;
     frame = getframe(hFig);
     writeVideo(writerObj, frame);
 
-    % Progress indicator
     if mod(fi, 50) == 0
         fprintf('%d/%d ', fi, nFrames);
     end

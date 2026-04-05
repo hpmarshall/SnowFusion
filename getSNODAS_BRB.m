@@ -55,9 +55,10 @@ nRows  = 3351;
 lon = linspace(lonmin, lonmax, nCols);
 lat = linspace(latmax, latmin, nRows); % north to south
 
-% Boise River Basin bounding box (approximate)
-BRB_lat = [43.0 44.5];
-BRB_lon = [-116.3 -114.3];
+% Bounding box matching UCLA SR tile coverage (latTiles=[43,44], lonTiles=[115,116,117])
+% Tiles named by SW corner: W115=[-115,-114], W116=[-116,-115], W117=[-117,-116]
+BRB_lat = [43.0 45.0];
+BRB_lon = [-117.0 -114.0];
 
 % Find pixel indices for BRB subset
 Ix = find(lon >= BRB_lon(1) & lon <= BRB_lon(2));
@@ -118,17 +119,23 @@ for d = 1:nDays
     % Check if we already have saved .mat file for this date
     matFile = fullfile(outDir, sprintf('SNODAS_BRB_%04d%02d%02d.mat', yyyy, mm, dd));
     if exist(matFile, 'file')
-        % Load existing data
+        % Load existing data - check grid size matches current bounding box
         R = load(matFile);
-        for v = 1:nVars
-            if isfield(R, prodName{v})
-                Snodas.(prodName{v})(:,:,d) = R.(prodName{v});
+        firstVar = prodName{find(isfield(R, prodName), 1)};
+        if ~isempty(firstVar) && ~isequal(size(R.(firstVar)), [length(Iy) length(Ix)])
+            fprintf('  [%d/%d] %s - cache size mismatch, re-downloading\n', d, nDays, datestr(allDates(d)));
+            delete(matFile);
+        else
+            for v = 1:nVars
+                if isfield(R, prodName{v})
+                    Snodas.(prodName{v})(:,:,d) = R.(prodName{v});
+                end
             end
+            if mod(d, 30) == 0
+                fprintf('  [%d/%d] %s - loaded from cache\n', d, nDays, datestr(allDates(d)));
+            end
+            continue;
         end
-        if mod(d, 30) == 0
-            fprintf('  [%d/%d] %s - loaded from cache\n', d, nDays, datestr(allDates(d)));
-        end
-        continue;
     end
 
     % Build URL

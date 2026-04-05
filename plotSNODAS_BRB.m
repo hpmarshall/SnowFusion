@@ -101,28 +101,10 @@ else
 end
 
 %% ====== LOAD SNOTEL SITES ======
-% Read from shapefile, pre-filter to BRB bounding box, then clip to polygon
+% Filter to the data grid extent (all sites visible in the plotted region)
 snotelShp = fullfile(scriptDir, 'SNOTEL/IDDCO_2020_automated_sites.shp');
-if hasShapefile
-    latLim = [min(S_lat(validIdx)) max(S_lat(validIdx))];
-    lonLim = [min(S_lon(validIdx)) max(S_lon(validIdx))];
-else
-    latLim = [43.0 44.5];
-    lonLim = [-116.3 -114.3];
-end
-snotel = getSNOTEL_BRB(snotelShp, latLim, lonLim);
-
-% Keep only sites strictly inside the BRB polygon
-if hasShapefile
-    inBRB_snotel = inpolygon(snotel.lon, snotel.lat, S_lon, S_lat);
-    snotel.name      = snotel.name(inBRB_snotel);
-    snotel.siteNum   = snotel.siteNum(inBRB_snotel);
-    snotel.lat       = snotel.lat(inBRB_snotel);
-    snotel.lon       = snotel.lon(inBRB_snotel);
-    snotel.elev_ft   = snotel.elev_ft(inBRB_snotel);
-    snotel.nStations = sum(inBRB_snotel);
-end
-fprintf('Loaded %d SNOTEL stations within BRB\n', snotel.nStations);
+snotel = getSNOTEL_BRB(snotelShp, [min(lat) max(lat)], [min(lon) max(lon)]);
+fprintf('Loaded %d SNOTEL stations within plotted region\n', snotel.nStations);
 
 %% ====== SET UP PLOTTING COORDINATES ======
 if useUTM
@@ -171,11 +153,6 @@ SWE_map   = Snodas.SWE(:,:,dayIdx);       % [m]
 Depth_map = Snodas.Depth(:,:,dayIdx);      % [m]
 Melt_map  = Snodas.Melt(:,:,dayIdx);       % [m]
 
-% Apply BRB mask
-SWE_map(~inBRB)   = NaN;
-Depth_map(~inBRB) = NaN;
-Melt_map(~inBRB)  = NaN;
-
 % Set zero values to NaN so they render transparent in all plots
 SWE_map(SWE_map == 0)     = NaN;
 Depth_map(Depth_map == 0) = NaN;
@@ -185,7 +162,8 @@ Melt_map(Melt_map == 0)   = NaN;
 figure(1); clf;
 set(gcf, 'Position', [50 50 900 700], 'Color', 'w');
 
-imagesc(plot_x, plot_y, SWE_map * 100); % convert m to cm
+h = imagesc(plot_x, plot_y, SWE_map * 100); % convert m to cm
+set(h, 'AlphaData', ~isnan(SWE_map));
 set(gca, 'YDir', 'normal');
 hold on;
 if hasShapefile
@@ -213,7 +191,8 @@ print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SNODAS_SWE_WY%d_day%03d.p
 figure(2); clf;
 set(gcf, 'Position', [100 50 900 700], 'Color', 'w');
 
-imagesc(plot_x, plot_y, Depth_map * 100); % convert m to cm
+h = imagesc(plot_x, plot_y, Depth_map * 100); % convert m to cm
+set(h, 'AlphaData', ~isnan(Depth_map));
 set(gca, 'YDir', 'normal');
 hold on;
 if hasShapefile
@@ -241,7 +220,8 @@ print('-dpng', '-r150', fullfile(dataDir, sprintf('BRB_SNODAS_Depth_WY%d_day%03d
 figure(3); clf;
 set(gcf, 'Position', [150 50 900 700], 'Color', 'w');
 
-imagesc(plot_x, plot_y, Melt_map * 1000); % convert m to mm
+h = imagesc(plot_x, plot_y, Melt_map * 1000); % convert m to mm
+set(h, 'AlphaData', ~isnan(Melt_map));
 set(gca, 'YDir', 'normal');
 hold on;
 if hasShapefile
@@ -271,7 +251,8 @@ figure(4); clf;
 set(gcf, 'Position', [50 50 1600 500], 'Color', 'w');
 
 subplot(1, 3, 1);
-imagesc(plot_x, plot_y, SWE_map * 100);
+h = imagesc(plot_x, plot_y, SWE_map * 100);
+set(h, 'AlphaData', ~isnan(SWE_map));
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on;
 if hasShapefile, plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2); end
@@ -282,7 +263,8 @@ title(sprintf('SWE [cm]\n%s', dateStr));
 xlabel(xLabel); ylabel(yLabel); axis equal tight;
 
 subplot(1, 3, 2);
-imagesc(plot_x, plot_y, Depth_map * 100);
+h = imagesc(plot_x, plot_y, Depth_map * 100);
+set(h, 'AlphaData', ~isnan(Depth_map));
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on;
 if hasShapefile, plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2); end
@@ -293,7 +275,8 @@ title(sprintf('Snow Depth [cm]\n%s', dateStr));
 xlabel(xLabel); ylabel(yLabel); axis equal tight;
 
 subplot(1, 3, 3);
-imagesc(plot_x, plot_y, Melt_map * 1000);
+h = imagesc(plot_x, plot_y, Melt_map * 1000);
+set(h, 'AlphaData', ~isnan(Melt_map));
 set(gca, 'YDir', 'normal', 'FontSize', 12, 'FontWeight', 'bold');
 hold on;
 if hasShapefile, plot(plot_shp_x, plot_shp_y, 'k-', 'LineWidth', 2); end
@@ -404,9 +387,9 @@ subplot(2, 1, 2);
 density_map = NaN(size(SWE_map));
 validPx = SWE_map > 0 & Depth_map > 0 & ~isnan(SWE_map) & ~isnan(Depth_map);
 density_map(validPx) = SWE_map(validPx) ./ Depth_map(validPx);
-density_map(~inBRB) = NaN;
 
-imagesc(plot_x, plot_y, density_map);
+h = imagesc(plot_x, plot_y, density_map);
+set(h, 'AlphaData', ~isnan(density_map));
 set(gca, 'YDir', 'normal');
 hold on;
 if hasShapefile
