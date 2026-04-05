@@ -1,6 +1,6 @@
 # SnowFusion
 
-MATLAB tools for downloading, processing, and visualizing gridded snow products over the Boise River Basin (BRB). Combines two complementary data sources: NOAA's Snow Data Assimilation System (SNODAS) and the UCLA Western US Snow Reanalysis (WUS_UCLA_SR).
+MATLAB and Python tools for downloading, processing, and visualizing gridded snow products over the Boise River Basin (BRB). Combines two complementary data sources: NOAA's Snow Data Assimilation System (SNODAS) and the UCLA Western US Snow Reanalysis (WUS_UCLA_SR).
 
 **Author:** HP Marshall, Boise State University
 **Created:** April 2026
@@ -43,7 +43,7 @@ SnowFusion/
   getUCLA_SWE.m         Function: load UCLA tiles, extract ensemble stats for a region
 
   -- Ground Truth --
-  getSNOTEL_BRB.m       Function: returns SNOTEL station locations in the BRB
+  getSNOTEL_BRB.m       Function: returns SNOTEL station locations within a region
 
   -- Visualization --
   plotSNODAS_BRB.m      Script: 6 publication-quality figures from SNODAS data
@@ -52,16 +52,25 @@ SnowFusion/
   makeSnowMovie.m       Function: generic MP4 movie for any snow variable
   movieSNODAS_BRB.m     Script: quick SNODAS animation with variable selection
   snowViz.m             Script: interactive menu-driven visualization driver
+  compareSWE_movie.m    Script: side-by-side SNODAS vs UCLA SWE movie
+
+  -- Utilities --
+  earthdata_credentials.m   Script: local NASA Earthdata credentials (DO NOT COMMIT)
+  diagnoseTiles.m            Script: diagnostic checks on UCLA tile coordinate ordering
+
+  -- Python Implementation --
+  python/               Python equivalents of all root .m files (see below)
 
   -- Subdirectories (legacy/original code) --
   SNODAS/               Original SNODAS scripts and earlier versions
   UCLA_SR/              Original UCLA SR scripts
-  .gitignore            Excludes data files from git
+  .gitignore            Excludes data files and credential files from git
 
 External data directory (not in git repo):
   /Users/hpmarshall/DATA_DRIVE/SnowFusion/
-    SNODAS/             Downloaded SNODAS .mat files and figures
+    SNODAS/             Downloaded SNODAS .mat/.pkl files and figures
     UCLA_SR/            Downloaded UCLA .nc files and figures
+    Movies/             Output MP4 movies
     temp_download/      Temporary extraction directory (auto-cleaned)
 ```
 
@@ -90,7 +99,7 @@ Snodas = getSNODAS_WY(2020, BB);
 
 ### 2. Download UCLA Snow Reanalysis Data
 
-Edit `getUCLA_SR_BRB.m` with your NASA Earthdata credentials, then run:
+Run `getUCLA_SR_BRB.m`. The script will use credentials from `earthdata_credentials.m` (which you must create locally — see [NASA Earthdata Credentials](#nasa-earthdata-credentials)):
 
 ```matlab
 >> getUCLA_SR_BRB
@@ -130,7 +139,15 @@ This generates 6 figures:
 5. Time series of basin-mean SWE with ensemble uncertainty envelope
 6. SWE uncertainty map (ensemble standard deviation)
 
-### 5. Interactive Visualization
+### 5. Side-by-Side Comparison Movie
+
+```matlab
+>> compareSWE_movie
+```
+
+Creates a single MP4 with two panels: SNODAS SWE (left) and UCLA SR SWE ensemble mean (right), sharing the same color scale and date, with BRB outline and SNOTEL sites overlaid on both panels. Saved to `DATA_DRIVE/SnowFusion/Movies/`.
+
+### 6. Interactive Visualization
 
 ```matlab
 >> snowViz
@@ -232,21 +249,24 @@ apr1_mean_swe = SWE(:,:,1,183);  % ensemble mean SWE on April 1
 
 ### Ground Truth
 
-#### `getSNOTEL_BRB()`
+#### `getSNOTEL_BRB(shpPath, latLim, lonLim)`
 
-Return SNOTEL station locations for the Boise River Basin. Returns a structure with 9 verified stations (from the NRCS National Water and Climate Center) including name, site number, latitude, longitude, and elevation.
+Return SNOTEL station locations within a specified region, read from a shapefile.
 
 ```matlab
-snotel = getSNOTEL_BRB();
-fprintf('%d stations loaded\n', snotel.nStations);
+snotel = getSNOTEL_BRB('SNOTEL/IDDCO_2020_automated_sites.shp', [43 45], [-117 -114]);
+fprintf('%d stations found\n', snotel.nStations);
 
 % Plot stations on a map
 plot(snotel.lon, snotel.lat, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
 ```
 
-**Output:** Structure with fields `.name` (cell array), `.siteNum`, `.lat`, `.lon`, `.elev_ft`, `.nStations`
+**Inputs:**
+- `shpPath` -- Path to SNOTEL shapefile (`SNOTEL/IDDCO_2020_automated_sites.shp`)
+- `latLim` -- Latitude limits `[latMin latMax]`
+- `lonLim` -- Longitude limits `[lonMin lonMax]`
 
-**Stations:** Atlanta Summit (306), Banner Summit (312), Deadwood Summit (436), Graham Guard Sta. (496), Jackson Peak (550), Mores Creek Summit (637), Prairie (710), Trinity Mountain (830), Bogus Basin (978)
+**Output:** Structure with fields `.name`, `.siteNum`, `.lat`, `.lon`, `.elev_ft`, `.nStations`
 
 ---
 
@@ -274,9 +294,6 @@ load('/Users/hpmarshall/DATA_DRIVE/SnowFusion/UCLA_SR/UCLA_SWE_WY2020.mat');
 plotSnowVar(UCLA, 'SWE_mean', '2020-04-01', ...
     'shapefile', 'BRB_outline.shp', ...
     'cmap', 'parula');
-
-% Plot fractional snow cover
-plotSnowVar(UCLA, 'fSCA_mean', '2020-03-15');
 ```
 
 **Name-Value Options:** `'clim'`, `'cmap'`, `'title'`, `'shapefile'`, `'figHandle'`, `'saveFig'`, `'units'`, `'latlim'`, `'lonlim'`, `'snotel'` (default `true`)
@@ -316,6 +333,121 @@ makeSnowMovie(Snodas, 'Melt', 'Melt_spring.mp4', ...
 
 ---
 
+#### `compareSWE_movie`
+
+Script that produces a side-by-side MP4 comparing SNODAS SWE (left) and UCLA SR ensemble mean SWE (right) for a full water year. Both panels share the same spatial extent, color scale (0–1.5 m), date label, BRB outline, and SNOTEL site overlays. Output is saved to `DATA_DRIVE/SnowFusion/Movies/SWE_comparison_SNODAS_UCLA_WY<YEAR>.mp4`.
+
+Configuration is set at the top of the script:
+
+```matlab
+WY       = 2021;
+FPS      = 10;
+SKIP_DAYS = 2;     % render every other day
+LATLIM   = [43.0 45.0];
+LONLIM   = [-117.0 -114.0];
+CLIM_SWE = [0 1.5];  % SWE color limits [m]
+```
+
+---
+
+## NASA Earthdata Credentials
+
+UCLA SR data requires a free NASA Earthdata account (register at https://urs.earthdata.nasa.gov).
+
+**MATLAB:** Create a local file `earthdata_credentials.m` in the repo root (it is excluded from git by `.gitignore`):
+
+```matlab
+% earthdata_credentials.m  -- DO NOT COMMIT
+earthdata_user = 'YOUR_USERNAME';
+earthdata_pass = 'YOUR_PASSWORD';
+```
+
+**Python:** Run `python/earthdata_credentials.py` once to securely store credentials in `~/.netrc`:
+
+```
+python python/earthdata_credentials.py
+```
+
+Credentials are stored in `~/.netrc` with permissions `600` and are read automatically by subsequent download scripts.
+
+---
+
+## Python Implementation
+
+The `python/` directory contains Python equivalents of all root-level MATLAB scripts and functions. The Python versions use the same algorithms, produce equivalent outputs, and read/write compatible data formats (`.pkl`/`.npz` instead of `.mat`).
+
+### Python File Reference
+
+| Python file | Equivalent MATLAB file | Description |
+|---|---|---|
+| `getSNODAS_BRB.py` | `getSNODAS_BRB.m` | Download SNODAS via HTTPS for a full water year |
+| `getSNODAS_WY.py` | `getSNODAS_WY.m` | Download SNODAS via FTP (alternate method) |
+| `loadSNODAS_var.py` | `loadSNODAS_var.m` | Load a single variable from cached files |
+| `getUCLA_SR_BRB.py` | `getUCLA_SR_BRB.m` | Download UCLA SR NetCDF tiles from Earthdata |
+| `mosaicUCLA_SR.py` | `mosaicUCLA_SR.m` | Read and mosaic 1-deg UCLA tiles |
+| `getUCLA_SWE.py` | `getUCLA_SWE.m` | Load UCLA tiles with ensemble statistics |
+| `getSNOTEL_BRB.py` | `getSNOTEL_BRB.m` | SNOTEL station locations within a region |
+| `plotSNODAS_BRB.py` | `plotSNODAS_BRB.m` | 6-figure SNODAS visualization suite |
+| `plotUCLA_SR_BRB.py` | `plotUCLA_SR_BRB.m` | 6-figure UCLA SR visualization suite |
+| `plotSnowVar.py` | `plotSnowVar.m` | Generic single-date snow map |
+| `makeSnowMovie.py` | `makeSnowMovie.m` | Generic MP4 movie maker |
+| `movieSNODAS_BRB.py` | `movieSNODAS_BRB.m` | Quick SNODAS animation |
+| `snowViz.py` | `snowViz.m` | Interactive menu-driven visualization driver |
+| `compareSWE_movie.py` | `compareSWE_movie.m` | Side-by-side SNODAS vs UCLA SWE movie |
+| `earthdata_credentials.py` | `earthdata_credentials.m` | Manage NASA Earthdata credentials via `~/.netrc` |
+| `diagnoseTiles.py` | `diagnoseTiles.m` | Diagnostic checks on UCLA tile coordinate ordering |
+
+### Python Quick Start
+
+```bash
+# Download SNODAS (edit WY and paths at top of script first)
+python python/getSNODAS_BRB.py
+
+# Download UCLA SR tiles
+python python/getUCLA_SR_BRB.py
+
+# Generate SNODAS figures
+python python/plotSNODAS_BRB.py
+
+# Generate UCLA SR figures
+python python/plotUCLA_SR_BRB.py
+
+# Side-by-side SWE comparison movie
+python python/compareSWE_movie.py
+```
+
+### Required Python Packages
+
+Install all dependencies with:
+
+```bash
+pip install numpy matplotlib scipy netCDF4 requests imageio imageio-ffmpeg geopandas pyproj shapely
+```
+
+Or with conda:
+
+```bash
+conda install numpy matplotlib scipy netCDF4 requests imageio geopandas pyproj shapely
+pip install imageio-ffmpeg
+```
+
+| Package | Version | Purpose |
+|---|---|---|
+| `numpy` | ≥1.22 | Array operations |
+| `matplotlib` | ≥3.5 | Plotting and figure export |
+| `scipy` | ≥1.7 | Loading MATLAB `.mat` files (`scipy.io`) |
+| `netCDF4` | ≥1.5 | Reading UCLA SR `.nc` tiles |
+| `requests` | ≥2.27 | HTTPS download of SNODAS data |
+| `imageio` | ≥2.16 | MP4 movie writing |
+| `imageio-ffmpeg` | any | FFmpeg backend for imageio |
+| `geopandas` | ≥0.10 | Reading shapefiles (BRB outline, SNOTEL) |
+| `pyproj` | ≥3.2 | UTM ↔ geographic coordinate conversion |
+| `shapely` | ≥1.8 | Point-in-polygon tests for SNOTEL filtering |
+
+Python ≥ 3.9 is required.
+
+---
+
 ## Data Structures
 
 Both data sources return structures with compatible field naming so that the generic visualization functions (`plotSnowVar`, `makeSnowMovie`) work interchangeably.
@@ -338,6 +470,8 @@ Snodas.Sublimation   - Pack sublimation [m]             (nLat x nLon x nDays)
 Snodas.SublimationBS - Blowing snow sublimation [m]     (nLat x nLon x nDays)
 ```
 
+Python equivalent: dict with the same keys; arrays are `numpy.ndarray`; dates are `list[datetime.date]`.
+
 ### UCLA Structure
 
 ```
@@ -357,14 +491,24 @@ UCLA.SD_std          - Snow depth std dev [m]            (nLat x nLon x nDays)
 UCLA.SD_median       - Snow depth median [m]             (nLat x nLon x nDays)
 ```
 
+Python equivalent: dict with the same keys; arrays are `numpy.ndarray`; dates are `list[datetime.date]`.
+
 ---
 
 ## Requirements
 
+### MATLAB
+
 - MATLAB R2019b or later
-- Mapping Toolbox (for `usamap`, `geoshow`, `shaperead`, UTM conversions)
+- Mapping Toolbox (for `usamap`, `geoshow`, `shaperead`, `projcrs`, UTM conversions)
 - Internet connection (for data downloads)
 - NASA Earthdata account (for UCLA SR data only; register at https://urs.earthdata.nasa.gov)
+
+### Python
+
+- Python ≥ 3.9
+- See [Required Python Packages](#required-python-packages) above
+- NASA Earthdata account (for UCLA SR data only)
 
 ---
 
@@ -373,28 +517,47 @@ UCLA.SD_median       - Snow depth median [m]             (nLat x nLon x nDays)
 The default region for all scripts is the Boise River Basin in central Idaho:
 
 ```
-Latitude:  43.0 to 44.5 deg N
-Longitude: -116.3 to -114.3 deg E
+Latitude:  43.0 to 45.0 deg N
+Longitude: -117.0 to -114.0 deg E
 ```
 
-The BRB shapefile (`BRB_outline.shp`) is in UTM Zone 11N (NAD83). All scripts handle the UTM-to-geographic coordinate conversion automatically.
+The BRB shapefile (`BRB_outline.shp`) is in UTM Zone 11N (NAD83). All scripts handle the UTM-to-geographic coordinate conversion automatically. SNOTEL sites are read from `SNOTEL/IDDCO_2020_automated_sites.shp` and filtered to whatever spatial extent is currently being plotted.
 
 ---
 
-## File List: New and Modified (April 2--3, 2026)
+## File List
 
-| File | Type | Description |
-|------|------|-------------|
-| `getSNODAS_BRB.m` | Script | SNODAS HTTPS downloader for BRB water year |
-| `getSNODAS_WY.m` | Function | SNODAS FTP downloader (alternate, any region) |
-| `loadSNODAS_var.m` | Function | Load single variable from cached .mat files |
-| `getUCLA_SR_BRB.m` | Script | UCLA SR NetCDF tile downloader for BRB |
-| `mosaicUCLA_SR.m` | Function | Mosaic 1-deg UCLA tiles into continuous grid |
-| `getUCLA_SWE.m` | Function | Load UCLA tiles with ensemble statistics |
-| `getSNOTEL_BRB.m` | Function | SNOTEL station locations for the BRB (9 stations) |
-| `plotSNODAS_BRB.m` | Script | 6-figure SNODAS visualization suite |
-| `plotUCLA_SR_BRB.m` | Script | 6-figure UCLA SR visualization suite |
-| `plotSnowVar.m` | Function | Generic single-date snow map (works with both sources) |
-| `makeSnowMovie.m` | Function | Generic MP4 movie maker (works with both sources) |
-| `movieSNODAS_BRB.m` | Script | Quick SNODAS variable animation |
-| `snowViz.m` | Script | Interactive menu-driven visualization driver |
+| File | Type | Language | Description |
+|------|------|----------|-------------|
+| `getSNODAS_BRB.m` | Script | MATLAB | SNODAS HTTPS downloader for BRB water year |
+| `getSNODAS_WY.m` | Function | MATLAB | SNODAS FTP downloader (alternate, any region) |
+| `loadSNODAS_var.m` | Function | MATLAB | Load single variable from cached .mat files |
+| `getUCLA_SR_BRB.m` | Script | MATLAB | UCLA SR NetCDF tile downloader for BRB |
+| `mosaicUCLA_SR.m` | Function | MATLAB | Mosaic 1-deg UCLA tiles into continuous grid |
+| `getUCLA_SWE.m` | Function | MATLAB | Load UCLA tiles with ensemble statistics |
+| `getSNOTEL_BRB.m` | Function | MATLAB | SNOTEL station locations within a region |
+| `plotSNODAS_BRB.m` | Script | MATLAB | 6-figure SNODAS visualization suite |
+| `plotUCLA_SR_BRB.m` | Script | MATLAB | 6-figure UCLA SR visualization suite |
+| `plotSnowVar.m` | Function | MATLAB | Generic single-date snow map (both sources) |
+| `makeSnowMovie.m` | Function | MATLAB | Generic MP4 movie maker (both sources) |
+| `movieSNODAS_BRB.m` | Script | MATLAB | Quick SNODAS variable animation |
+| `snowViz.m` | Script | MATLAB | Interactive menu-driven visualization driver |
+| `compareSWE_movie.m` | Script | MATLAB | Side-by-side SNODAS vs UCLA SWE movie |
+| `earthdata_credentials.m` | Script | MATLAB | Local NASA Earthdata credentials (not in git) |
+| `diagnoseTiles.m` | Script | MATLAB | Diagnostic checks on UCLA tile coordinates |
+| `python/getSNODAS_BRB.py` | Script | Python | — same as MATLAB equivalent — |
+| `python/getSNODAS_WY.py` | Function | Python | — |
+| `python/loadSNODAS_var.py` | Function | Python | — |
+| `python/getUCLA_SR_BRB.py` | Script | Python | — |
+| `python/mosaicUCLA_SR.py` | Function | Python | — |
+| `python/getUCLA_SWE.py` | Function | Python | — |
+| `python/getSNOTEL_BRB.py` | Function | Python | — |
+| `python/plotSNODAS_BRB.py` | Script | Python | — |
+| `python/plotUCLA_SR_BRB.py` | Script | Python | — |
+| `python/plotSnowVar.py` | Function | Python | — |
+| `python/makeSnowMovie.py` | Function | Python | — |
+| `python/movieSNODAS_BRB.py` | Script | Python | — |
+| `python/snowViz.py` | Script | Python | — |
+| `python/compareSWE_movie.py` | Script | Python | — |
+| `python/earthdata_credentials.py` | Module | Python | Credentials via ~/.netrc (not in git) |
+| `python/diagnoseTiles.py` | Script | Python | — |

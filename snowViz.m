@@ -175,7 +175,9 @@ if mode == 2 || mode == 3
     skipDays = input('Skip days (1=every day, 2=every other, etc. default 1): ');
     if isempty(skipDays), skipDays = 1; end
 
-    movieFile = sprintf('%s_%s_WY%d.mp4', srcName, selectedVar, data.WY);
+    moviesDir = fullfile(dataRoot, 'Movies');
+    if ~exist(moviesDir, 'dir'), mkdir(moviesDir); end
+    movieFile = fullfile(moviesDir, sprintf('%s_%s_WY%d.mp4', srcName, selectedVar, data.WY));
     movieFile = strrep(movieFile, ' ', '_');
     fprintf('Output: %s\n', movieFile);
 
