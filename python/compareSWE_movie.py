@@ -43,6 +43,7 @@ if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
 from plotSnowVar import parula, _dates_as_date, _to_date
+from mosaicUCLA_SR import mosaicUCLA_SR
 
 try:
     import geopandas as gpd
@@ -53,15 +54,20 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Configuration  (edit here or adapt for CLI arguments)
 # ---------------------------------------------------------------------------
-DATA_ROOT  = pathlib.Path("/Users/hpmarshall/DATA_DRIVE/SnowFusion")
-SCRIPT_DIR = _HERE.parent          # parent of python/ = SnowFusion/
+DATA_ROOT    = pathlib.Path("/Users/hpmarshall/DATA_DRIVE/SnowFusion")
+SCRIPT_DIR   = _HERE.parent          # parent of python/ = SnowFusion/
+SNOTEL_SHP   = SCRIPT_DIR / "SNOTEL" / "IDDCO_2020_automated_sites.shp"
 
 WY       = 2021
 WY_START = datetime.date(WY - 1, 10, 1)   # Oct 1, 2020
+WY_STR   = "WY2020_21"     # UCLA tile filename string
+
+# UCLA tile coverage
+LAT_TILES = [43, 44]
+LON_TILES = [115, 116, 117]
 
 # Movie settings
-FPS       = 10
-SKIP_DAYS = 2     # render every other day
+FPS       = 10    # default; overridden by user input at runtime
 
 # Spatial extent
 LATLIM = (43.0, 45.0)
@@ -94,16 +100,17 @@ def _load_data(path: pathlib.Path) -> dict:
 def _fig_to_rgb(fig) -> np.ndarray:
     """Return figure canvas as H x W x 3 uint8 array."""
     fig.canvas.draw()
-    w, h = fig.canvas.get_width_height()
-    buf = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-    return buf.reshape(h, w, 3)
+    buf = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8)
+    w, h = fig.canvas.get_width_height(physical=True)
+    return buf.reshape(h, w, 4)[:, :, :3]
 
 
 def _load_snotel(latlim, lonlim):
     try:
-        from getSNOTEL_BRB import get_snotel_brb
-        return get_snotel_brb(latlim=latlim, lonlim=lonlim)
-    except Exception:
+        from getSNOTEL_BRB import getSNOTEL_BRB
+        return getSNOTEL_BRB(SNOTEL_SHP, lat_lim=latlim, lon_lim=lonlim)
+    except Exception as e:
+        warnings.warn(f"Could not load SNOTEL sites: {e}")
         return None
 
 
@@ -176,6 +183,14 @@ def _plot_panel(
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    # ---- prompt for FPS ---------------------------------------------------
+    try:
+        fps_input = input(f"Frames per second [default {FPS}]: ").strip()
+        fps = int(fps_input) if fps_input else FPS
+    except (ValueError, EOFError):
+        fps = FPS
+    print(f"Using {fps} fps")
+
     # ---- load SNODAS ------------------------------------------------------
     print(f"Loading SNODAS WY{WY} …")
     snodas_path = DATA_ROOT / "SNODAS" / f"SNODAS_BRB_WY{WY}.pkl"
@@ -198,40 +213,30 @@ def main() -> None:
         snodas_lat = snodas_lat[::-1]
         snodas_swe = np.flip(snodas_swe, axis=0)
 
-    snodas_dates = _dates_as_date(snodas["dates"])
+    # Prefer datestr (YYYY-MM-DD strings written by getSNODAS_BRB.py)
+    if "datestr" in snodas:
+        snodas_dates = [datetime.date.fromisoformat(str(s)) for s in snodas["datestr"]]
+    else:
+        snodas_dates = _dates_as_date(snodas["dates"])
     print(f"  SNODAS grid: {len(snodas_lat)} lat x {len(snodas_lon)} lon, "
           f"{len(snodas_dates)} days")
 
     # ---- load UCLA --------------------------------------------------------
     print("Loading UCLA SR …")
-    ucla_path = DATA_ROOT / "UCLA_SR" / f"UCLA_SWE_WY{WY}.pkl"
-    if not ucla_path.exists():
-        ucla_path = ucla_path.with_suffix(".npz")
-    if not ucla_path.exists():
-        raise FileNotFoundError(
-            f"UCLA SR data not found at {ucla_path.with_suffix('.pkl')} "
-            f"or {ucla_path.with_suffix('.npz')}"
-        )
-    ucla = _load_data(ucla_path)
+    ucla_data_dir = DATA_ROOT / "UCLA_SR"
+    ucla_lat, ucla_lon, SWE_4d, _, _ = mosaicUCLA_SR(
+        ucla_data_dir, WY_STR, LAT_TILES, LON_TILES
+    )
 
-    ucla_lat = np.asarray(ucla["lat"], dtype=float)
-    ucla_lon = np.asarray(ucla["lon"], dtype=float)
+    # Ensure lat ascending (south-to-north) for correct imshow orientation
+    if ucla_lat[0] > ucla_lat[-1]:
+        ucla_lat = ucla_lat[::-1]
+        SWE_4d   = SWE_4d[::-1, ...]
 
-    # UCLA SWE may be 4-D (lat x lon x ensemble x days) or 3-D
-    raw_swe = ucla.get("SWE_mean", ucla.get("SWE", None))
-    if raw_swe is None:
-        raise KeyError("UCLA data has no 'SWE_mean' or 'SWE' field.")
-    ucla_swe = np.asarray(raw_swe, dtype=float)
-    if ucla_swe.ndim == 4:
-        # squeeze ensemble dimension (index 0)
-        ucla_swe = ucla_swe[:, :, 0, :]
+    # Extract ensemble mean (axis 2, index 0) → shape (lat, lon, days)
+    ucla_swe    = SWE_4d[:, :, 0, :].astype(float)
     n_days_ucla = ucla_swe.shape[2]
-
-    if "dates" in ucla:
-        ucla_dates = _dates_as_date(ucla["dates"])
-    else:
-        ucla_dates = [WY_START + datetime.timedelta(days=i)
-                      for i in range(n_days_ucla)]
+    ucla_dates  = [WY_START + datetime.timedelta(days=i) for i in range(n_days_ucla)]
 
     print(f"  UCLA grid: {len(ucla_lat)} lat x {len(ucla_lon)} lon, "
           f"{n_days_ucla} days")
@@ -239,7 +244,7 @@ def main() -> None:
     # ---- align dates -------------------------------------------------------
     snodas_date_set = set(snodas_dates)
     common_dates = sorted(d for d in ucla_dates if d in snodas_date_set)
-    plot_dates   = common_dates[::SKIP_DAYS]
+    plot_dates   = common_dates
     n_frames     = len(plot_dates)
     print(f"Common dates: {len(common_dates)}  |  Frames to render: {n_frames}")
 
@@ -269,7 +274,7 @@ def main() -> None:
     # ---- set up figure and writer -----------------------------------------
     fig = plt.figure(figsize=(19.2, 7.2), facecolor="white")
 
-    writer_kwargs = dict(fps=FPS, quality=8, codec="libx264",
+    writer_kwargs = dict(fps=fps, quality=8, codec="libx264",
                          macro_block_size=None)
 
     print("Rendering frames …")
