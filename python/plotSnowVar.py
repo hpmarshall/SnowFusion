@@ -352,8 +352,9 @@ def _try_overlay_snotel(ax, latlim, lonlim):
         _script_dir = _pl.Path(__file__).parent
         if str(_script_dir) not in sys.path:
             sys.path.insert(0, str(_script_dir))
-        from getSNOTEL_BRB import get_snotel_brb
-        snotel = get_snotel_brb(latlim=latlim, lonlim=lonlim)
+        from getSNOTEL_BRB import getSNOTEL_BRB
+        shp_path = _script_dir.parent / "SNOTEL" / "IDDCO_2020_automated_sites.shp"
+        snotel = getSNOTEL_BRB(shp_path, lat_lim=latlim, lon_lim=lonlim)
         if snotel and snotel.get("n_stations", 0) > 0:
             ax.plot(
                 snotel["lon"], snotel["lat"],

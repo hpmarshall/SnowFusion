@@ -52,8 +52,9 @@ from plotSnowVar import get_var_defaults, _to_date, _dates_as_date, parula
 def _load_snotel(latlim, lonlim):
     """Try to load SNOTEL sites; return dict or None on failure."""
     try:
-        from getSNOTEL_BRB import get_snotel_brb
-        return get_snotel_brb(latlim=latlim, lonlim=lonlim)
+        from getSNOTEL_BRB import getSNOTEL_BRB
+        shp_path = _HERE.parent / "SNOTEL" / "IDDCO_2020_automated_sites.shp"
+        return getSNOTEL_BRB(shp_path, lat_lim=latlim, lon_lim=lonlim)
     except Exception:
         return None
 
@@ -65,9 +66,9 @@ def _load_snotel(latlim, lonlim):
 def _fig_to_rgb(fig) -> np.ndarray:
     """Return the figure canvas as an H x W x 3 uint8 numpy array."""
     fig.canvas.draw()
-    w, h = fig.canvas.get_width_height()
-    buf = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-    return buf.reshape(h, w, 3)
+    buf = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8)
+    w, h = fig.canvas.get_width_height(physical=True)
+    return buf.reshape(h, w, 4)[:, :, :3]
 
 
 # ---------------------------------------------------------------------------

@@ -132,39 +132,49 @@ def _load_snodas(data_root: pathlib.Path) -> dict | None:
 
 
 def _load_ucla(data_root: pathlib.Path) -> dict | None:
+    import datetime
+    import numpy as np
+    from mosaicUCLA_SR import mosaicUCLA_SR
+
+    wy_raw = input("Water year [default 2021]: ").strip()
+    wy = int(wy_raw) if wy_raw else 2021
+    wy_str = f"WY{wy - 1}_{str(wy)[2:]}"   # e.g. WY2020_21
+
     ucla_dir = data_root / "UCLA_SR"
-    patterns = ["UCLA_SWE_WY*.pkl", "UCLA_SWE_WY*.npz"]
-    files: list[pathlib.Path] = []
-    for p in patterns:
-        files.extend(_find_data_files(ucla_dir, p))
-    files = sorted(set(files))
+    lat_tiles = [43, 44]
+    lon_tiles  = [115, 116, 117]
 
-    if files:
-        print("\nFound existing UCLA SWE files:")
-        for i, f in enumerate(files, 1):
-            print(f"  [{i}]  {f.name}")
-        print("  [0]  (manual path)")
-        raw = input("\nSelect file [number]: ").strip()
-        if raw == "0":
-            path = pathlib.Path(input("Enter full path: ").strip())
-        else:
-            idx = int(raw) - 1
-            path = files[idx]
-    else:
-        print("\nNo existing UCLA SWE files found.")
-        path = pathlib.Path(input("Enter full path to UCLA .pkl/.npz file: ").strip())
+    print(f"Loading UCLA SR tiles ({wy_str}) from {ucla_dir} …")
+    lat, lon, SWE, fSCA, SD = mosaicUCLA_SR(ucla_dir, wy_str, lat_tiles, lon_tiles)
 
-    print(f"Loading {path} …")
-    if path.suffix == ".pkl":
-        data = _load_pkl(path)
-        if "UCLA" in data and isinstance(data["UCLA"], dict):
-            data = data["UCLA"]
-    elif path.suffix == ".npz":
-        import numpy as np
-        raw = np.load(path, allow_pickle=True)
-        data = {k: raw[k] for k in raw.files}
-    else:
-        raise ValueError(f"Unsupported file format: {path.suffix}")
+    # Ensure lat ascending (south to north) for correct imshow orientation
+    if lat[0] > lat[-1]:
+        lat  = lat[::-1]
+        SWE  = SWE[::-1,  ...]
+        fSCA = fSCA[::-1, ...]
+        SD   = SD[::-1,   ...]
+
+    n_days   = SWE.shape[3]
+    wy_start = datetime.date(wy - 1, 10, 1)
+    dates    = [wy_start + datetime.timedelta(days=i) for i in range(n_days)]
+
+    data = {
+        "lat":        lat,
+        "lon":        lon,
+        "dates":      dates,
+        "WY":         wy,
+        # ensemble axis 2: 0=mean, 1=std, 2=p25, 3=median, 4=p75
+        "SWE_mean":   SWE[:, :, 0, :].astype(float),
+        "SWE_std":    SWE[:, :, 1, :].astype(float),
+        "SWE_p25":    SWE[:, :, 2, :].astype(float),
+        "SWE_median": SWE[:, :, 3, :].astype(float),
+        "SWE_p75":    SWE[:, :, 4, :].astype(float),
+        "fSCA_mean":  fSCA[:, :, 0, :].astype(float),
+        "SD_mean":    SD[:, :, 0, :].astype(float),
+        "SD_std":     SD[:, :, 1, :].astype(float),
+        "SD_median":  SD[:, :, 3, :].astype(float),
+    }
+    print(f"  UCLA grid: {len(lat)} lat x {len(lon)} lon, {n_days} days")
     return data
 
 
