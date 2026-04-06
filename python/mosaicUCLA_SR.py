@@ -208,9 +208,9 @@ def mosaicUCLA_SR(data_dir, wy_str, lat_tiles, lon_tiles):
     # Per-tile dimensions from probe data
     with nc.Dataset(probe_file) as ds:
         probe_data = ds.variables[swe_var if has_swe else sd_var][:]
-        # Shape: [lat, lon, ensemble, day]
-        n_ens  = probe_data.shape[2]
-        n_days = probe_data.shape[3]
+        # Shape: [days, ensemble, lat, lon]
+        n_days = probe_data.shape[0]
+        n_ens  = probe_data.shape[1]
         tile_lat_probe = ds.variables[lat_var][:]
         tile_lon_probe = ds.variables[lon_var][:]
 
@@ -280,13 +280,16 @@ def mosaicUCLA_SR(data_dir, wy_str, lat_tiles, lon_tiles):
                     with nc.Dataset(swe_f) as ds:
                         tile_lat  = np.asarray(ds.variables[lat_var][:])
                         tile_lon  = np.asarray(ds.variables[lon_var][:])
-                        tile_swe  = np.asarray(ds.variables[swe_var][:])   # [lat,lon,ens,day]
+                        tile_swe  = np.asarray(ds.variables[swe_var][:])   # [days,ens,lat,lon]
                         tile_fsca = np.asarray(ds.variables[fsca_var][:])
+
+                    # File is (day, ens, lon, lat); transpose to (lat, lon, ens, day)
+                    tile_swe  = tile_swe.transpose(3, 2, 1, 0)
+                    tile_fsca = tile_fsca.transpose(3, 2, 1, 0)
 
                     lat_idx = _find_coord_idx(tile_lat, lat_vec, tol)
                     lon_idx = _find_coord_idx(tile_lon, lon_vec, tol)
 
-                    # Use np.ix_ for fancy indexing into the 2-D spatial block
                     SWE [np.ix_(lat_idx, lon_idx)]  = tile_swe
                     fSCA[np.ix_(lat_idx, lon_idx)]  = tile_fsca
                 else:
@@ -300,7 +303,9 @@ def mosaicUCLA_SR(data_dir, wy_str, lat_tiles, lon_tiles):
                     with nc.Dataset(sd_f) as ds:
                         tile_lat = np.asarray(ds.variables[sd_lat_var][:])
                         tile_lon = np.asarray(ds.variables[sd_lon_var][:])
-                        tile_sd  = np.asarray(ds.variables[sd_var][:])
+                        tile_sd  = np.asarray(ds.variables[sd_var][:])   # [days,ens,lat,lon]
+
+                    tile_sd = tile_sd.transpose(3, 2, 1, 0)
 
                     lat_idx = _find_coord_idx(tile_lat, lat_vec, tol)
                     lon_idx = _find_coord_idx(tile_lon, lon_vec, tol)

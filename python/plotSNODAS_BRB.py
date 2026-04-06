@@ -29,7 +29,6 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")          # non-interactive backend; change to 'TkAgg' etc. if desired
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
@@ -87,7 +86,7 @@ PARULA = _parula_cmap()
 
 def _melt_cmap() -> mcolors.ListedColormap:
     """White for zero melt, warm autumn colors for positive melt."""
-    autumn = cm.get_cmap("autumn", 255)(np.linspace(0, 1, 255))[::-1]
+    autumn = matplotlib.colormaps.get_cmap("autumn")(np.linspace(0, 1, 255))[::-1]
     white = np.array([[1, 1, 1, 1]])
     colors = np.vstack([white, autumn])
     return mcolors.ListedColormap(colors)
@@ -167,9 +166,12 @@ def main(
     target_day: int = 1,
     use_utm: bool = True,
     data_root: str = "/Users/hpmarshall/DATA_DRIVE/SnowFusion",
+    out_dir: str | None = None,
 ):
     script_dir = Path(__file__).parent.parent   # SnowFusion root
     data_dir   = Path(data_root) / "SNODAS"
+    out_path   = Path(out_dir) if out_dir else data_dir
+    out_path.mkdir(parents=True, exist_ok=True)
     shp_file   = script_dir / "BRB_outline.shp"
     snotel_shp = script_dir / "SNOTEL" / "IDDCO_2020_automated_sites.shp"
 
@@ -208,20 +210,23 @@ def main(
                      for v in ["SWE", "Depth", "Precip", "SnowPrecip",
                                "Tsnow", "SublimationBS", "Melt", "Sublimation"]}
 
-    # dates stored as Python ordinals or float datenum — detect and convert
-    raw_dates = data["dates"]
-    # If stored as MATLAB datenum (days since 0-Jan-0000), convert to datetime
-    # MATLAB datenum 1 = Jan 1, year 0001 → Python ordinal 1 = Jan 1, year 1
-    # A reasonable check: MATLAB WY2021 dates are ~7.38e5
-    if raw_dates[0] > 50000:
-        # MATLAB datenum → Python datetime
-        dates = np.array([
-            datetime(1, 1, 1) + timedelta(days=float(d) - 367)
-            for d in raw_dates
-        ])
+    # Prefer the 'datestr' field (YYYY-MM-DD strings) written by getSNODAS_BRB.py.
+    # Fall back to numeric conversion only if datestr is absent.
+    if "datestr" in data.files:
+        dates = np.array([datetime.strptime(str(s), "%Y-%m-%d") for s in data["datestr"]])
     else:
-        # Assume Python ordinals
-        dates = np.array([datetime.fromordinal(int(d)) for d in raw_dates])
+        raw_dates = data["dates"]
+        # Python ordinals for modern dates are ~730000+; MATLAB datenums are ~366 higher.
+        # Distinguish by checking whether the value converts to a plausible year.
+        probe = datetime.fromordinal(int(raw_dates[0]))
+        if probe.year < 1970:
+            # Ordinal too small → treat as MATLAB datenum
+            dates = np.array([
+                datetime(1, 1, 1) + timedelta(days=float(d) - 367)
+                for d in raw_dates
+            ])
+        else:
+            dates = np.array([datetime.fromordinal(int(d)) for d in raw_dates])
 
     # ── Load BRB shapefile ───────────────────────────────────────────────────
     has_shapefile = shp_file.exists()
@@ -348,10 +353,9 @@ def main(
                    **map_kw)
     fig1.colorbar(im, ax=ax1, label="SWE [cm]")
     fig1.tight_layout()
-    out1 = data_dir / f"BRB_SNODAS_SWE_WY{wy}_day{day_idx:03d}.png"
+    out1 = out_path / f"BRB_SNODAS_SWE_WY{wy}_day{day_idx:03d}.png"
     fig1.savefig(out1, dpi=150, bbox_inches="tight")
     print(f"Saved {out1}")
-    plt.close(fig1)
 
     # =========================================================================
     # Figure 2: Snow Depth map
@@ -364,10 +368,9 @@ def main(
                    **map_kw)
     fig2.colorbar(im, ax=ax2, label="Snow Depth [cm]")
     fig2.tight_layout()
-    out2 = data_dir / f"BRB_SNODAS_Depth_WY{wy}_day{day_idx:03d}.png"
+    out2 = out_path / f"BRB_SNODAS_Depth_WY{wy}_day{day_idx:03d}.png"
     fig2.savefig(out2, dpi=150, bbox_inches="tight")
     print(f"Saved {out2}")
-    plt.close(fig2)
 
     # =========================================================================
     # Figure 3: Daily Melt map
@@ -381,10 +384,9 @@ def main(
                    **map_kw)
     fig3.colorbar(im, ax=ax3, label="Melt [mm]")
     fig3.tight_layout()
-    out3 = data_dir / f"BRB_SNODAS_Melt_WY{wy}_day{day_idx:03d}.png"
+    out3 = out_path / f"BRB_SNODAS_Melt_WY{wy}_day{day_idx:03d}.png"
     fig3.savefig(out3, dpi=150, bbox_inches="tight")
     print(f"Saved {out3}")
-    plt.close(fig3)
 
     # =========================================================================
     # Figure 4: 3-panel summary
@@ -418,10 +420,9 @@ def main(
     fig4.suptitle(f"SNODAS - Boise River Basin - WY{wy}",
                   fontsize=16, fontweight="bold")
     fig4.tight_layout()
-    out4 = data_dir / f"BRB_SNODAS_summary_WY{wy}_day{day_idx:03d}.png"
+    out4 = out_path / f"BRB_SNODAS_summary_WY{wy}_day{day_idx:03d}.png"
     fig4.savefig(out4, dpi=150, bbox_inches="tight")
     print(f"Saved {out4}")
-    plt.close(fig4)
 
     # =========================================================================
     # Figure 5: Time series of basin-mean SWE & Depth
@@ -443,7 +444,7 @@ def main(
 
         melt_d = Melt_full[:, :, d].copy()
         melt_d[~in_brb] = np.nan
-        mean_melt[d] = np.nanmean(melt_d)
+        mean_melt[d] = np.nanmean(melt_d) if np.any(np.isfinite(melt_d)) else 0.0
 
     fig5, ax5 = plt.subplots(figsize=(10, 4))
     fig5.patch.set_facecolor("white")
@@ -477,10 +478,9 @@ def main(
     ax5.legend(lines_l + lines_r, labels_l + labels_r, loc="upper left", fontsize=12)
 
     fig5.tight_layout()
-    out5 = data_dir / f"BRB_SNODAS_SWE_timeseries_WY{wy}.png"
+    out5 = out_path / f"BRB_SNODAS_SWE_timeseries_WY{wy}.png"
     fig5.savefig(out5, dpi=150, bbox_inches="tight")
     print(f"Saved {out5}")
-    plt.close(fig5)
 
     # =========================================================================
     # Figure 6: SWE vs Snow Depth scatter + bulk density map
@@ -540,10 +540,9 @@ def main(
     fig6.colorbar(im6, ax=ax6b, label="SWE / Depth")
 
     fig6.tight_layout()
-    out6 = data_dir / f"BRB_SNODAS_density_WY{wy}_day{day_idx:03d}.png"
+    out6 = out_path / f"BRB_SNODAS_density_WY{wy}_day{day_idx:03d}.png"
     fig6.savefig(out6, dpi=150, bbox_inches="tight")
     print(f"Saved {out6}")
-    plt.close(fig6)
 
     # =========================================================================
     # Summary statistics
@@ -564,7 +563,8 @@ def main(
         f"\nPeak basin-mean SWE: {mean_swe[peak_idx]*100:.1f} cm "
         f"on {dates[peak_idx].strftime('%d-%b-%Y')}"
     )
-    print(f"\nFigures saved to: {data_dir}")
+    print(f"\nFigures saved to: {out_path}")
+    plt.show()
     print("Done!")
 
 
@@ -575,17 +575,30 @@ if __name__ == "__main__":
         description="Plot SNODAS data over the Boise River Basin"
     )
     parser.add_argument("--wy",      type=int,  default=2021, help="Water year (default 2021)")
-    parser.add_argument("--month",   type=int,  default=4,    help="Target month (default 4)")
-    parser.add_argument("--day",     type=int,  default=1,    help="Target day (default 1)")
+    parser.add_argument("--date",    type=str,  default=None,
+                        help="Target date YYYY-MM-DD (default: April 1 of the water year)")
+    parser.add_argument("--month",   type=int,  default=4,    help="Target month (default 4, ignored if --date given)")
+    parser.add_argument("--day",     type=int,  default=1,    help="Target day of month (default 1, ignored if --date given)")
     parser.add_argument("--no-utm",  action="store_true",     help="Use geographic coords instead of UTM")
     parser.add_argument("--data-root", default="/Users/hpmarshall/DATA_DRIVE/SnowFusion",
                         help="Root data directory")
+    parser.add_argument("--out-dir", default=None,
+                        help="Directory for output PNG files (default: same as data directory)")
     args = parser.parse_args()
+
+    if args.date is not None:
+        parsed = datetime.strptime(args.date, "%Y-%m-%d")
+        target_month = parsed.month
+        target_day   = parsed.day
+    else:
+        target_month = args.month
+        target_day   = args.day
 
     main(
         wy=args.wy,
-        target_month=args.month,
-        target_day=args.day,
+        target_month=target_month,
+        target_day=target_day,
         use_utm=not args.no_utm,
         data_root=args.data_root,
+        out_dir=args.out_dir,
     )

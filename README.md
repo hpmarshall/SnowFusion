@@ -406,15 +406,95 @@ python python/getSNODAS_BRB.py
 # Download UCLA SR tiles
 python python/getUCLA_SR_BRB.py
 
-# Generate SNODAS figures
+# Generate SNODAS figures (default: April 1 of the water year)
 python python/plotSNODAS_BRB.py
 
-# Generate UCLA SR figures
+# Generate UCLA SR figures (default: April 1 of the water year)
 python python/plotUCLA_SR_BRB.py
 
 # Side-by-side SWE comparison movie
 python python/compareSWE_movie.py
 ```
+
+### Python Visualization Options
+
+#### `plotSNODAS_BRB.py`
+
+```
+usage: plotSNODAS_BRB.py [--wy WY] [--date YYYY-MM-DD] [--month M] [--day D]
+                          [--data-root DIR] [--out-dir DIR] [--no-utm]
+```
+
+| Argument | Default | Description |
+|---|---|---|
+| `--wy` | `2021` | Water year |
+| `--date YYYY-MM-DD` | April 1 of `--wy` | Target date for snapshot figures |
+| `--month`, `--day` | `4`, `1` | Alternative to `--date`; ignored if `--date` given |
+| `--data-root DIR` | `/Users/hpmarshall/DATA_DRIVE/SnowFusion` | Root of data directory tree |
+| `--out-dir DIR` | same as data directory | Where to write output PNG files |
+| `--no-utm` | — | Use geographic (lat/lon) coords instead of UTM |
+
+```bash
+# Default: WY2021, April 1, UTM coordinates
+python python/plotSNODAS_BRB.py
+
+# Specific date
+python python/plotSNODAS_BRB.py --date 2021-03-15
+
+# Different water year and date
+python python/plotSNODAS_BRB.py --wy 2020 --date 2020-04-01
+
+# Save figures to a custom directory
+python python/plotSNODAS_BRB.py --date 2021-04-01 --out-dir ~/Desktop/snodas_figs
+
+# Geographic coordinates instead of UTM
+python python/plotSNODAS_BRB.py --date 2021-04-01 --no-utm
+```
+
+All six figures are displayed interactively after saving. Close the figure windows to exit.
+
+---
+
+#### `plotUCLA_SR_BRB.py`
+
+```
+usage: plotUCLA_SR_BRB.py [--wy-str WY_STR] [--wy-start-year YEAR]
+                           [--lat-tiles N [N ...]] [--lon-tiles N [N ...]]
+                           [--date YYYY-MM-DD] [--target-date N]
+                           [--ens-idx N] [--data-dir DIR] [--out-dir DIR] [--no-utm]
+```
+
+| Argument | Default | Description |
+|---|---|---|
+| `--wy-str` | `WY2020_21` | Water year string matching tile filenames |
+| `--wy-start-year` | `2020` | Calendar year when the water year starts (Oct 1) |
+| `--lat-tiles N …` | `43 44` | Tile lower-left latitudes to mosaic |
+| `--lon-tiles N …` | `115 116 117` | Tile lower-left west longitudes to mosaic |
+| `--date YYYY-MM-DD` | April 1 of the water year | Target date for snapshot figures |
+| `--target-date N` | `183` | Day of water year (1 = Oct 1); ignored if `--date` given |
+| `--ens-idx N` | `0` | Ensemble member index (0=mean, 1=std, 2=25th, 3=median, 4=75th) |
+| `--data-dir DIR` | `.../UCLA_SR` | Directory containing downloaded `.nc` tiles |
+| `--out-dir DIR` | same as data directory | Where to write output PNG files |
+| `--no-utm` | — | Use geographic (lat/lon) coords instead of UTM |
+
+```bash
+# Default: WY2020_21, April 1, UTM coordinates
+python python/plotUCLA_SR_BRB.py
+
+# Specific date
+python python/plotUCLA_SR_BRB.py --date 2021-03-15
+
+# Save figures to a custom directory
+python python/plotUCLA_SR_BRB.py --date 2021-04-01 --out-dir ~/Desktop/ucla_figs
+
+# Show ensemble median instead of mean
+python python/plotUCLA_SR_BRB.py --date 2021-04-01 --ens-idx 3
+
+# Different tile coverage (e.g. single 1-degree tile)
+python python/plotUCLA_SR_BRB.py --lat-tiles 43 --lon-tiles 116 --date 2021-04-01
+```
+
+All six figures are displayed interactively after saving. Close the figure windows to exit.
 
 ### Required Python Packages
 

@@ -187,9 +187,9 @@ def mosaic_ucla_sr(
 
         # Dimensions from test data
         primary_var = swe_var if has_swe else _find_var(var_names, ["SD_Post", "SD", "sd"])
-        arr = ds.variables[primary_var][:]   # shape: (lat, lon, ens, day) or similar
-        n_ens  = arr.shape[2]
-        n_days = arr.shape[3]
+        arr = ds.variables[primary_var][:]   # shape: (days, ens, lat, lon)
+        n_days = arr.shape[0]
+        n_ens  = arr.shape[1]
 
         tile_lat_arr = ds.variables[lat_var][:]
         tile_lon_arr = ds.variables[lon_var][:]
@@ -270,11 +270,13 @@ def mosaic_ucla_sr(
                     with nc.Dataset(fname) as ds:
                         tile_lat = ds.variables[lat_var][:]
                         tile_lon = ds.variables[lon_var][:]
-                        tile_swe  = ds.variables[swe_var][:]   # (lat, lon, ens, day)
+                        tile_swe  = ds.variables[swe_var][:]   # (days, ens, lat, lon)
                         tile_fsca = ds.variables[fsca_var][:]
+                    # File is (day, ens, lon, lat); transpose to (lat, lon, ens, day)
+                    tile_swe  = tile_swe.transpose(3, 2, 1, 0)
+                    tile_fsca = tile_fsca.transpose(3, 2, 1, 0)
                     lat_idx = _coord_idx(tile_lat, lat_vec)
                     lon_idx = _coord_idx(tile_lon, lon_vec)
-                    # Use np.ix_ for fancy indexing into 4-D array
                     ix = np.ix_(lat_idx, lon_idx, np.arange(n_ens), np.arange(n_days))
                     SWE_out[ix]  = tile_swe
                     fSCA_out[ix] = tile_fsca
@@ -290,7 +292,8 @@ def mosaic_ucla_sr(
                     with nc.Dataset(fname) as ds:
                         tile_lat = ds.variables[sd_lat_var][:]
                         tile_lon = ds.variables[sd_lon_var][:]
-                        tile_sd  = ds.variables[sd_var][:]
+                        tile_sd  = ds.variables[sd_var][:]   # (days, ens, lat, lon)
+                    tile_sd = tile_sd.transpose(3, 2, 1, 0)
                     lat_idx = _coord_idx(tile_lat, lat_vec)
                     lon_idx = _coord_idx(tile_lon, lon_vec)
                     ix = np.ix_(lat_idx, lon_idx, np.arange(n_ens), np.arange(n_days))
@@ -382,6 +385,7 @@ def main(
     ens_idx: int = 0,                  # 0-based: 0=mean, 1=std, 2=25th, 3=median, 4=75th
     use_utm: bool = True,
     data_dir: str = "/Users/hpmarshall/DATA_DRIVE/SnowFusion/UCLA_SR",
+    out_dir: str | None = None,
 ):
     if lat_tiles is None:
         lat_tiles = [43, 44]
@@ -389,6 +393,8 @@ def main(
         lon_tiles = [115, 116, 117]
 
     data_dir   = Path(data_dir)
+    out_path   = Path(out_dir) if out_dir else data_dir
+    out_path.mkdir(parents=True, exist_ok=True)
     script_dir = Path(__file__).parent.parent   # SnowFusion root
     shp_file   = script_dir / "BRB_outline.shp"
     snotel_shp = script_dir / "SNOTEL" / "IDDCO_2020_automated_sites.shp"
@@ -401,6 +407,14 @@ def main(
     print("Reading and mosaicing UCLA SR tiles ...")
     lat, lon, SWE, fSCA, SD = mosaic_ucla_sr(data_dir, wy_str, lat_tiles, lon_tiles)
     print(f"Grid size: {len(lat)} lat x {len(lon)} lon")
+
+    # Ensure lat is ascending (south-to-north) so imshow origin="lower" is north-up
+    if lat[0] > lat[-1]:
+        lat  = lat[::-1]
+        SWE  = SWE[::-1, ...]
+        fSCA = fSCA[::-1, ...]
+        SD   = SD[::-1, ...]
+        print("Flipped latitude to ascending (south-to-north) for plotting.")
 
     # ── Load BRB shapefile ───────────────────────────────────────────────────
     print("Loading BRB shapefile ...")
@@ -511,10 +525,9 @@ def main(
                    **map_kw_full)
     fig1.colorbar(im, ax=ax1, label="SWE [cm]")
     fig1.tight_layout()
-    out1 = data_dir / f"BRB_SWE_{wy_str}_day{target_date:03d}.png"
+    out1 = out_path / f"BRB_SWE_{wy_str}_day{target_date:03d}.png"
     fig1.savefig(out1, dpi=150, bbox_inches="tight")
     print(f"Saved {out1}")
-    plt.close(fig1)
 
     # =========================================================================
     # Figure 2: fSCA map
@@ -527,10 +540,9 @@ def main(
                    **map_kw_full)
     fig2.colorbar(im, ax=ax2, label="fSCA [%]")
     fig2.tight_layout()
-    out2 = data_dir / f"BRB_fSCA_{wy_str}_day{target_date:03d}.png"
+    out2 = out_path / f"BRB_fSCA_{wy_str}_day{target_date:03d}.png"
     fig2.savefig(out2, dpi=150, bbox_inches="tight")
     print(f"Saved {out2}")
-    plt.close(fig2)
 
     # =========================================================================
     # Figure 3: Snow Depth map (if available)
@@ -544,10 +556,9 @@ def main(
                        **map_kw_full)
         fig3.colorbar(im, ax=ax3, label="Snow Depth [cm]")
         fig3.tight_layout()
-        out3 = data_dir / f"BRB_SD_{wy_str}_day{target_date:03d}.png"
+        out3 = out_path / f"BRB_SD_{wy_str}_day{target_date:03d}.png"
         fig3.savefig(out3, dpi=150, bbox_inches="tight")
         print(f"Saved {out3}")
-        plt.close(fig3)
     else:
         print("  To download SD, update getUCLA_SR_BRB.py to include SD_POST files.")
 
@@ -593,10 +604,9 @@ def main(
     fig4.suptitle(f"UCLA Snow Reanalysis - Boise River Basin - {wy_title}",
                   fontsize=16, fontweight="bold")
     fig4.tight_layout()
-    out4 = data_dir / f"BRB_summary_{wy_str}_day{target_date:03d}.png"
+    out4 = out_path / f"BRB_summary_{wy_str}_day{target_date:03d}.png"
     fig4.savefig(out4, dpi=150, bbox_inches="tight")
     print(f"Saved {out4}")
-    plt.close(fig4)
 
     # =========================================================================
     # Figure 5: Time series of basin-mean SWE
@@ -648,10 +658,9 @@ def main(
     ax5.legend(fontsize=12, loc="upper left")
 
     fig5.tight_layout()
-    out5 = data_dir / f"BRB_SWE_timeseries_{wy_str}.png"
+    out5 = out_path / f"BRB_SWE_timeseries_{wy_str}.png"
     fig5.savefig(out5, dpi=150, bbox_inches="tight")
     print(f"Saved {out5}")
-    plt.close(fig5)
 
     # =========================================================================
     # Figure 6: SWE Uncertainty map (ensemble std)
@@ -669,10 +678,9 @@ def main(
                        **map_kw_full)
         fig6.colorbar(im, ax=ax6, label="SWE std [cm]")
         fig6.tight_layout()
-        out6 = data_dir / f"BRB_SWE_uncertainty_{wy_str}_day{target_date:03d}.png"
+        out6 = out_path / f"BRB_SWE_uncertainty_{wy_str}_day{target_date:03d}.png"
         fig6.savefig(out6, dpi=150, bbox_inches="tight")
         print(f"Saved {out6}")
-        plt.close(fig6)
 
     # =========================================================================
     # Summary statistics
@@ -693,7 +701,8 @@ def main(
     if has_std and np.isfinite(std_swe[td]):
         print(f"Basin mean SWE uncertainty: {std_swe[td]*100:.1f} cm")
 
-    print(f"\nFigures saved to: {data_dir}")
+    print(f"\nFigures saved to: {out_path}")
+    plt.show()
     print("Done!")
 
 
@@ -711,23 +720,38 @@ if __name__ == "__main__":
                         help="Tile lower-left latitudes (default: 43 44)")
     parser.add_argument("--lon-tiles",    type=int, nargs="+", default=[115, 116, 117],
                         help="Tile lower-left west longitudes (default: 115 116 117)")
-    parser.add_argument("--target-date",  type=int, default=183,
-                        help="Day of water year to map (1=Oct 1; 183=Apr 1). Default 183.")
+    parser.add_argument("--date",         type=str, default=None,
+                        help="Target date YYYY-MM-DD (default: April 1 of the water year)")
+    parser.add_argument("--target-date",  type=int, default=None,
+                        help="Day of water year (1=Oct 1; 183=Apr 1). Ignored if --date given.")
     parser.add_argument("--ens-idx",      type=int, default=0,
                         help="0-based ensemble index (0=mean, 1=std, ...). Default 0.")
     parser.add_argument("--no-utm",       action="store_true",
                         help="Use geographic coords instead of UTM")
     parser.add_argument("--data-dir",     default="/Users/hpmarshall/DATA_DRIVE/SnowFusion/UCLA_SR",
                         help="Directory with downloaded .nc files")
+    parser.add_argument("--out-dir",      default=None,
+                        help="Directory for output PNG files (default: same as data directory)")
     args = parser.parse_args()
+
+    # Resolve target day-of-water-year
+    if args.date is not None:
+        parsed = datetime.strptime(args.date, "%Y-%m-%d")
+        wy_start = datetime(args.wy_start_year, 10, 1)
+        target_date = (parsed - wy_start).days + 1
+    elif args.target_date is not None:
+        target_date = args.target_date
+    else:
+        target_date = 183   # April 1 default
 
     main(
         wy_str=args.wy_str,
         wy_start_year=args.wy_start_year,
         lat_tiles=args.lat_tiles,
         lon_tiles=args.lon_tiles,
-        target_date=args.target_date,
+        target_date=target_date,
         ens_idx=args.ens_idx,
         use_utm=not args.no_utm,
         data_dir=args.data_dir,
+        out_dir=args.out_dir,
     )
