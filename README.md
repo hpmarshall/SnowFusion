@@ -5,6 +5,11 @@ MATLAB and Python tools for downloading, processing, and visualizing gridded sno
 **Author:** HP Marshall, Boise State University
 **Created:** April 2026
 
+Both MATLAB and Python implementations are provided with equivalent functionality. Jump to the relevant quick-start section:
+
+- [MATLAB Quick Start](#quick-start) — uses `.mat` files, Mapping Toolbox, `VideoWriter`
+- [Python Quick Start](#python-quick-start) — uses `.npz`/`.pkl` files, `matplotlib`, `imageio`; supports `--date` and `--out-dir` command-line options
+
 ---
 
 ## Data Sources
@@ -111,11 +116,24 @@ This downloads the 1-deg x 1-deg NetCDF tiles covering the BRB. If automated dow
 
 After downloading, run:
 
+**MATLAB** (date is set at the top of the script):
 ```matlab
 >> plotSNODAS_BRB
 ```
 
-This generates 6 figures:
+**Python** (date and output directory are command-line options):
+```bash
+# Default: April 1 of the water year
+python python/plotSNODAS_BRB.py
+
+# Specific date
+python python/plotSNODAS_BRB.py --date 2021-03-15
+
+# Specific date, save figures to a custom directory
+python python/plotSNODAS_BRB.py --date 2021-04-01 --out-dir ~/Desktop/snodas_figs
+```
+
+Both versions generate 6 figures:
 
 1. SWE map (April 1 by default) in cm
 2. Snow depth map in cm
@@ -124,13 +142,28 @@ This generates 6 figures:
 5. Time series of basin-mean SWE and depth over the water year
 6. SWE vs. snow depth scatter with bulk density analysis
 
+See [Python Visualization Options](#python-visualization-options) for the full list of command-line arguments.
+
 ### 4. Visualize UCLA Snow Reanalysis Data
 
+**MATLAB** (date is set at the top of the script):
 ```matlab
 >> plotUCLA_SR_BRB
 ```
 
-This generates 6 figures:
+**Python** (date and output directory are command-line options):
+```bash
+# Default: April 1 of the water year
+python python/plotUCLA_SR_BRB.py
+
+# Specific date
+python python/plotUCLA_SR_BRB.py --date 2021-03-15
+
+# Specific date, save figures to a custom directory
+python python/plotUCLA_SR_BRB.py --date 2021-04-01 --out-dir ~/Desktop/ucla_figs
+```
+
+Both versions generate 6 figures:
 
 1. SWE map (ensemble mean, April 1) in cm
 2. Fractional snow-covered area map in percent
@@ -138,6 +171,8 @@ This generates 6 figures:
 4. 3-panel summary (SWE, fSCA, depth)
 5. Time series of basin-mean SWE with ensemble uncertainty envelope
 6. SWE uncertainty map (ensemble standard deviation)
+
+See [Python Visualization Options](#python-visualization-options) for the full list of command-line arguments.
 
 ### 5. Side-by-Side Comparison Movie
 
@@ -475,6 +510,7 @@ usage: plotUCLA_SR_BRB.py [--wy-str WY_STR] [--wy-start-year YEAR]
 | `--ens-idx N` | `0` | Ensemble member index (0=mean, 1=std, 2=25th, 3=median, 4=75th) |
 | `--data-dir DIR` | `.../UCLA_SR` | Directory containing downloaded `.nc` tiles |
 | `--out-dir DIR` | same as data directory | Where to write output PNG files |
+| `--std-clim N` | auto (data max) | Upper color limit for the SWE uncertainty map [cm] |
 | `--no-utm` | — | Use geographic (lat/lon) coords instead of UTM |
 
 ```bash
@@ -492,6 +528,9 @@ python python/plotUCLA_SR_BRB.py --date 2021-04-01 --ens-idx 3
 
 # Different tile coverage (e.g. single 1-degree tile)
 python python/plotUCLA_SR_BRB.py --lat-tiles 43 --lon-tiles 116 --date 2021-04-01
+
+# Limit SWE uncertainty color scale to 10 cm to reveal spatial variation
+python python/plotUCLA_SR_BRB.py --date 2021-04-01 --std-clim 10
 ```
 
 All six figures are displayed interactively after saving. Close the figure windows to exit.

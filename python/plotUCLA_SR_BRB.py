@@ -31,7 +31,6 @@ from datetime import datetime, timedelta
 import numpy as np
 import netCDF4 as nc
 import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import geopandas as gpd
@@ -386,6 +385,7 @@ def main(
     use_utm: bool = True,
     data_dir: str = "/Users/hpmarshall/DATA_DRIVE/SnowFusion/UCLA_SR",
     out_dir: str | None = None,
+    std_clim_max: float | None = None,   # upper color limit for uncertainty plot [cm]; None = auto
 ):
     if lat_tiles is None:
         lat_tiles = [43, 44]
@@ -671,8 +671,9 @@ def main(
 
         fig6, ax6 = plt.subplots(figsize=(9, 7))
         fig6.patch.set_facecolor("white")
+        std_clim = (0, std_clim_max if std_clim_max is not None else _safe_max(swe_std_m))
         im = _plot_map(ax6, plot_x, plot_y, swe_std_m,
-                       parula_cmap, (0, _safe_max(swe_std_m)),
+                       parula_cmap, std_clim,
                        title=(f"UCLA SR - SWE Uncertainty (1\u03c3) [cm] - {date_str}\n"
                               f"Boise River Basin, {wy_title}"),
                        **map_kw_full)
@@ -732,6 +733,8 @@ if __name__ == "__main__":
                         help="Directory with downloaded .nc files")
     parser.add_argument("--out-dir",      default=None,
                         help="Directory for output PNG files (default: same as data directory)")
+    parser.add_argument("--std-clim",     type=float, default=None,
+                        help="Upper color limit for SWE uncertainty plot [cm] (default: auto)")
     args = parser.parse_args()
 
     # Resolve target day-of-water-year
@@ -754,4 +757,5 @@ if __name__ == "__main__":
         use_utm=not args.no_utm,
         data_dir=args.data_dir,
         out_dir=args.out_dir,
+        std_clim_max=args.std_clim,
     )
