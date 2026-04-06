@@ -20,3 +20,5 @@ earthdata_credentials.m
 data_BRB/
 data/
 temp_download/
+
+.DS_Store
